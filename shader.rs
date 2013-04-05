@@ -8,6 +8,16 @@ pub struct Program {
     fs: u32
 }
 
+impl Drop for Program {
+    fn finalize(&self) {
+        glDetachShader(self.handle, self.vs);
+        glDetachShader(self.handle, self.fs);
+        glDeleteShader(self.vs);
+        glDeleteShader(self.fs);
+        glDeleteProgram(self.handle);
+    }
+}
+
 pub impl Program {
     fn new(vs_src: &str, fs_src: &str) -> Program {
         let program = glCreateProgram();
@@ -48,6 +58,26 @@ pub impl Program {
         glVertexAttribPointer(self.attribute_location(attrib), 3, GL_DOUBLE,
                               GL_FALSE, sys::size_of::<Vec3f>() as i32, 0 as *libc::c_void);
         glEnableVertexAttribArray(self.attribute_location(attrib));
+    }
+
+    fn uniform_location(&self, uniform: &str) -> u32 {
+        do str::as_c_str(uniform) |ptr| {
+            glGetUniformLocation(self.handle, ptr) as u32
+        }
+    }
+
+    fn set_uniform_mat4(&mut self, uniform: &str, matrix: &Mat4f) {
+        self.bind();
+
+        let mut mat: [f32, ..16] = [0.0f32, ..16];
+        for uint::range(0, 16) |i| {
+            mat[i] = matrix[i / 4][i % 4] as f32;
+        }
+
+        do vec::as_imm_buf(mat) |ptr, _len| {
+            glProgramUniformMatrix4fv(self.handle, self.uniform_location(uniform) as i32,
+                                      1, GL_FALSE, ptr);
+        }
     }
 
     fn bind(&self) {

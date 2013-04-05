@@ -4,6 +4,12 @@ pub struct Buffer {
     handle: u32
 }
 
+impl Drop for Buffer {
+    fn finalize(&self) {
+        glDeleteBuffers(1, unsafe { ptr::addr_of(&self.handle) });
+    }
+}
+
 pub impl Buffer {
     fn new() -> Buffer {
         let buf = 0u32;
@@ -18,7 +24,7 @@ pub impl Buffer {
         glBindBuffer(GL_ARRAY_BUFFER, self.handle);
     }
 
-    fn update<T>(&self, data: &[T]) {
+    fn update<T>(&mut self, data: &[T]) {
         self.bind();
 
         do vec::as_imm_buf(data) |ptr, len| {

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+rustc rsmc.rs -Llmath-rs/lib -Lglcore-rs/lib -Lglfw-rs/lib

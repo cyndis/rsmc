@@ -60,6 +60,14 @@ pub impl Program {
         glEnableVertexAttribArray(self.attribute_location(attrib));
     }
 
+    fn set_attribute_vec2(&mut self, attrib: &str, buffer: &Buffer) {
+        glUseProgram(self.handle);
+        buffer.bind();
+        glVertexAttribPointer(self.attribute_location(attrib), 2, GL_DOUBLE,
+                              GL_FALSE, sys::size_of::<Vec2f>() as i32, 0 as *libc::c_void);
+        glEnableVertexAttribArray(self.attribute_location(attrib));
+    }
+
     fn uniform_location(&self, uniform: &str) -> u32 {
         do str::as_c_str(uniform) |ptr| {
             glGetUniformLocation(self.handle, ptr) as u32
@@ -78,6 +86,12 @@ pub impl Program {
             glProgramUniformMatrix4fv(self.handle, self.uniform_location(uniform) as i32,
                                       1, GL_FALSE, ptr);
         }
+    }
+
+    fn set_uniform_int(&mut self, uniform: &str, value: int) {
+        self.bind();
+
+        glProgramUniform1i(self.handle, self.uniform_location(uniform) as i32, value as i32);
     }
 
     fn bind(&self) {

@@ -4,6 +4,8 @@ use glcore::*;
 use shader::Program;
 use buffer::Buffer;
 use texture::Texture;
+use chunk;
+use chunk::Chunk;
 
 use common::*;
 
@@ -36,13 +38,20 @@ fn add_quat(a: &Quatf, b: &Quatf) -> Quatf {
                   b.v.mul_t(a.s).add_v(&a.v.mul_t(b.s)).add_v(&a.v.cross(&b.v)))
 }
 
-static MOVE_SPEED: float = 2.5f;
+fn perspective(fov_y: float, aspect: float, z_near: float, z_far: float) -> Mat4f {
+    let f = 1.0 / float::tan(0.5 * fov_y);
+    BaseMat4::new(f/aspect, 0.0, 0.0, 0.0, 0.0, f, 0.0, 0.0, 0.0, 0.0,
+                  (z_far + z_near) / (z_near - z_far), -1.0, 0.0, 0.0,
+                  (2.0 * z_far * z_near) / (z_near - z_far), 0.0)
+}
+
+static MOVE_SPEED: float = 5.0f;
 
 fn main() {
     glfw::set_error_callback(error_cb);
 
     do glfw::spawn {
-        let wnd = glfw::Window::create(800, 480, "Kato moro", glfw::Windowed).unwrap();
+        let wnd = glfw::Window::create(1280, 800, "Kato moro", glfw::Windowed).unwrap();
 
         wnd.make_context_current();
         wnd.set_key_callback(key_cb);
@@ -52,12 +61,13 @@ fn main() {
 
         glDebugMessageCallback(debug_cb, ptr::null());
         glEnable(GL_DEBUG_OUTPUT);
-
         glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
 
         let mut state = initialize_opengl();
         let mut camera = CameraState {
-            position: NumVec::zero(),
+            position: BaseVec3::new(1.05, -0.46, -29.3),
             rot_x: 0.0,
             rot_y: 0.0,
             rotation: Quat::identity()
@@ -96,8 +106,8 @@ fn main() {
             let (dx, dy) = match (cursor, last_cursor) { ((a,b),(c,d)) => (a-c,b-d) };
             last_cursor = cursor;
 
-            camera.rot_x -= (dx as float / 5800.0) * (3.1416 / 2.0);
-            camera.rot_y -= (dy as float / 5800.0) * (3.1416 / 2.0);
+            camera.rot_x -= (dx as float / 2800.0) * (3.1416 / 2.0);
+//            camera.rot_y -= (dy as float / 3800.0) * (3.1416 / 2.0);
 
             camera.rotation = add_quat(
                 &Quat::from_angle_axis(camera.rot_x, &BaseVec3::new(0.0, 1.0, 0.0)),
@@ -107,6 +117,8 @@ fn main() {
             draw(&mut state, &camera);
 
             wnd.swap_buffers();
+
+//            io::println(fmt!("%?", camera.position));
         }
     }
 }
@@ -115,7 +127,9 @@ struct RendererState {
     program: Program,
     vbo: Buffer,
     tbo: Buffer,
+    nbo: Buffer,
     brick_tex: Texture,
+    cube_no: uint
 }
 
 struct CameraState {
@@ -132,10 +146,12 @@ uniform mat4 projection;
 uniform mat4 modelview;
 
 out vec2 v_texcoord;
+out vec3 v_position;
 
 void main() {
     gl_Position = projection * modelview * vec4(position, 1.0);
     v_texcoord = texcoord;
+    v_position = position;
 }
 ";
 
@@ -145,40 +161,97 @@ layout (location = 0) out vec4 outputColor;
 uniform sampler2D texture;
 
 in vec2 v_texcoord;
+in vec3 v_position;
 
 void main() {
-    outputColor = texture2D(texture, v_texcoord);
+    float attenuation = clamp(v_position.y / 16.0, 0.5, 1.0);
+    outputColor = attenuation * texture2D(texture, v_texcoord);
+}
+";
+
+static vertex_shader2: &'static str = "
+#version 330
+in vec3 position;
+in vec2 texcoord;
+in vec3 normal;
+uniform mat4 projection;
+uniform mat4 modelview;
+
+out vec2 v_texcoord;
+out vec3 v_position;
+
+out vec4 lieye;
+out vec4 vneye;
+
+void main() {
+    gl_Position = projection * modelview * vec4(position, 1.0);
+    v_texcoord = texcoord;
+    v_position = position;
+
+    lieye = modelview * vec4(2.0, 1.0, 1.0, 0.0);
+    vneye = modelview * vec4(normal, 0.0);
+}
+";
+
+static fragment_shader2: &'static str = "
+#version 330
+layout (location = 0) out vec4 outputColor;
+uniform sampler2D texture;
+
+in vec2 v_texcoord;
+in vec3 v_position;
+
+in vec4 lieye;
+in vec4 vneye;
+
+void main() {
+    vec4 Ld = texture2D(texture, v_texcoord);
+
+    vec4 n_eye = normalize(vneye);
+
+    vec4 Ia = vec4(0.13, 0.13, 0.13, 1.0);
+    vec4 Id = vec4(0.75, 0.75, 0.75, 1.0) * max(dot(lieye, n_eye), 0.0);
+    outputColor = Ld * (Ia + Id);
 }
 ";
 
 fn initialize_opengl() -> RendererState {
-    glViewport(0, 0, 800, 480);
+    glViewport(0, 0, 1280, 800);
 
-    /*
-    let triangle: &[Vec3f] = [
-        BaseVec3::new( 0.5, 0.0, 0.0),
-        BaseVec3::new(-0.5, 1.0, 0.0),
-        BaseVec3::new(-0.5,-1.0, 0.0)
-    ];
-    */
-    let cube = make_cube(0.0, 0.0, 0.0, 0.1);
+    let mut chunk = Chunk::new();
+    for chunk.each_block_mut |(x,y,z), block| {
+        if y == 15 { *block = chunk::Air };
+        if x < 15 && x > 0 && z < 15 && z > 0 { *block = chunk::Air };
+        if y == 0 { *block = chunk::Brick };
+    }
+
+    let (vertex_data, texcoord_data, normal_data) = chunk.generate_buffer_data();
 
     let mut buffer = Buffer::new();
-    buffer.update(cube);
+    buffer.update(vertex_data);
 
     let mut tc_buffer = Buffer::new();
-    tc_buffer.update(make_cube_texcoord());
+    tc_buffer.update(texcoord_data);
 
-    let mut program = Program::new(vertex_shader, fragment_shader);
+    let mut n_buffer = Buffer::new();
+    n_buffer.update(normal_data);
 
-    let projection = lmath::projection::perspective(3.1416 / 2.0, 800.0 / 480.0, 0.1, 200.0);
+    let mut program = Program::new(vertex_shader2, fragment_shader2);
+
+    // lmath's perspective function gives wrong values
+    //let projection = lmath::projection::perspective(65.0 / 180.0 * 3.1416, 800.0 / 480.0, 0.1, 60.0);
+    //let projection = BaseMat4::new(0.9418, 0.0, 0.0, 0.0, 0.0, 1.5696, 0.0, 0.0, 0.0, 0.0, -1.003, -1.0, 0.0, 0.0, -0.20003, 0.0);
+    let projection = perspective(80.0 / 180.0 * 3.1416, 800.0 / 480.0, 0.1, 60.0);
+    io::println(fmt!("%?", projection));
     program.set_uniform_mat4("projection", &projection);
 
     RendererState {
         program: program,
         vbo: buffer,
         tbo: tc_buffer,
+        nbo: n_buffer,
         brick_tex: Texture::load_file(~"brick.png").unwrap(),
+        cube_no: vertex_data.len() / 24
     }
 }
 
@@ -186,6 +259,7 @@ fn draw(state: &mut RendererState, camera: &CameraState) {
     state.program.bind();
     state.program.set_attribute_vec3("position", &state.vbo);
     state.program.set_attribute_vec2("texcoord", &state.tbo);
+    state.program.set_attribute_vec3("normal", &state.nbo);
 
     let camera_matrix: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
                                              0.0, 1.0, 0.0, 0.0,
@@ -196,7 +270,7 @@ fn draw(state: &mut RendererState, camera: &CameraState) {
     let camera_matrix = camera.rotation.inverse().to_mat3().to_mat4().mul_m(&camera_matrix);
 
 
-    let (x, y, z) = (0.0, 0.0, -10.0);
+    let (x, y, z) = (0.0, -1.6, -30.0);
     let modelview: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
                                          0.0, 1.0, 0.0, 0.0,
                                          0.0, 0.0, 1.0, 0.0,
@@ -209,29 +283,7 @@ fn draw(state: &mut RendererState, camera: &CameraState) {
     state.brick_tex.bind(0);
     state.program.set_uniform_int("texture", 0);
 
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glDrawArrays(GL_QUADS, 0, 24);
-}
-
-fn make_cube(x: float, y: float, z: float, n: float) -> ~[Vec3f] {
-    ~[
-        BaseVec3::new(x-n,y+n,z-n), BaseVec3::new(x-n,y+n,z+n), BaseVec3::new(x+n,y+n,z+n), BaseVec3::new(x+n,y+n,z-n),  // top
-        BaseVec3::new(x-n,y-n,z-n), BaseVec3::new(x+n,y-n,z-n), BaseVec3::new(x+n,y-n,z+n), BaseVec3::new(x-n,y-n,z+n),  // bottom
-        BaseVec3::new(x-n,y-n,z-n), BaseVec3::new(x-n,y-n,z+n), BaseVec3::new(x-n,y+n,z+n), BaseVec3::new(x-n,y+n,z-n),  // left
-        BaseVec3::new(x+n,y-n,z+n), BaseVec3::new(x+n,y-n,z-n), BaseVec3::new(x+n,y+n,z-n), BaseVec3::new(x+n,y+n,z+n),  // right
-        BaseVec3::new(x-n,y-n,z+n), BaseVec3::new(x+n,y-n,z+n), BaseVec3::new(x+n,y+n,z+n), BaseVec3::new(x-n,y+n,z+n),  // front
-        BaseVec3::new(x+n,y-n,z-n), BaseVec3::new(x-n,y-n,z-n), BaseVec3::new(x-n,y+n,z-n), BaseVec3::new(x+n,y+n,z-n),  // back
-    ]
-}
-
-fn make_cube_texcoord() -> ~[Vec2f] {
-    ~[
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-    ]
+    glDrawArrays(GL_QUADS, 0, 24*state.cube_no as i32);
 }

@@ -30,8 +30,11 @@ pub impl Texture {
 
                 unsafe {
                 glTextureParameteriEXT(tex, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTextureParameteriEXT(tex, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
                 glTextureParameteriEXT(tex, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
                 glTextureParameteriEXT(tex, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                // GL_MAX_ANISOTROPY_EXT
+                glTextureParameteriEXT(tex, GL_TEXTURE_2D, 0x84FE, 16);
 
                 glTextureImage2DEXT(tex, GL_TEXTURE_2D, 0, GL_RGB, image.width as GLsizei,
                                     image.height as GLsizei, 0, GL_RGB, GL_UNSIGNED_BYTE,

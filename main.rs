@@ -10,7 +10,7 @@ use common::*;
 use lmath;
 // for Mat3::to_mat4
 use lmath::mat::BaseMat3;
-use lmath::vec::{AffineVec, NumVec, NumVec3};
+use lmath::vec::{AffineVec, NumVec, NumVec3, BaseVec};
 
 fn error_cb(_error: libc::c_int, desc: ~str) {
     println(fmt!("GLFW error: %s", desc));
@@ -36,6 +36,8 @@ fn add_quat(a: &Quatf, b: &Quatf) -> Quatf {
                   b.v.mul_t(a.s).add_v(&a.v.mul_t(b.s)).add_v(&a.v.cross(&b.v)))
 }
 
+static MOVE_SPEED: float = 2.5f;
+
 fn main() {
     glfw::set_error_callback(error_cb);
 
@@ -54,34 +56,55 @@ fn main() {
         glEnable(GL_CULL_FACE);
 
         let mut state = initialize_opengl();
+        let mut camera = CameraState {
+            position: NumVec::zero(),
+            rot_x: 0.0,
+            rot_y: 0.0,
+            rotation: Quat::identity()
+        };
 
         println("-- INITIALIZED --");
 
         let mut last_cursor = wnd.get_cursor_pos();
+        let mut last_update = glfw::get_time();
 
         while !wnd.should_close() {
             glfw::poll_events();
+
+            let time = glfw::get_time();
+            let dt = (time - last_update) as float;
+            last_update = time;
+
+            let fwd = camera.rotation.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
+            let up  = camera.rotation.mul_v(&BaseVec3::new(0.0, 1.0, 0.0));
+            let rt  = fwd.cross(&up);
+
+            if wnd.get_key(glfw::KEY_A) == glfw::PRESS {
+                camera.position.add_self_v(&rt.mul_t(-dt*MOVE_SPEED));
+            }
+            if wnd.get_key(glfw::KEY_D) == glfw::PRESS {
+                camera.position.add_self_v(&rt.mul_t(dt*MOVE_SPEED));
+            }
+            if wnd.get_key(glfw::KEY_W) == glfw::PRESS {
+                camera.position.add_self_v(&fwd.mul_t(dt*MOVE_SPEED));
+            }
+            if wnd.get_key(glfw::KEY_S) == glfw::PRESS {
+                camera.position.add_self_v(&fwd.mul_t(-dt*MOVE_SPEED));
+            }
 
             let cursor = wnd.get_cursor_pos();
             let (dx, dy) = match (cursor, last_cursor) { ((a,b),(c,d)) => (a-c,b-d) };
             last_cursor = cursor;
 
-            state.rota += dx as float / 150.0;
-            state.rotb += dy as float / 150.0;
+            camera.rot_x -= (dx as float / 5800.0) * (3.1416 / 2.0);
+            camera.rot_y -= (dy as float / 5800.0) * (3.1416 / 2.0);
 
-            state.rotation = add_quat(
-                &Quat::from_angle_axis(state.rota, &BaseVec3::new(0.0, 1.0, 0.0)),
-                &Quat::from_angle_axis(state.rotb, &BaseVec3::new(1.0, 0.0, 0.0))
+            camera.rotation = add_quat(
+                &Quat::from_angle_axis(camera.rot_x, &BaseVec3::new(0.0, 1.0, 0.0)),
+                &Quat::from_angle_axis(camera.rot_y, &BaseVec3::new(1.0, 0.0, 0.0))
                              );
 
-            /*
-            state.rotation = add_quat(
-                &state.rotation,
-                &Quat::from_angle_axis(0.01*2.0*3.1416, &BaseVec3::new(0.0, 1.0, 0.0)).mul_t(dx as float)
-            );
-            */
-
-            draw(&mut state);
+            draw(&mut state, &camera);
 
             wnd.swap_buffers();
         }
@@ -93,8 +116,12 @@ struct RendererState {
     vbo: Buffer,
     tbo: Buffer,
     brick_tex: Texture,
-    rotation: Quatf,
-    rota: float, rotb: float
+}
+
+struct CameraState {
+    position: Vec3f,
+    rot_x: float, rot_y: float,
+    rotation: Quatf
 }
 
 static vertex_shader: &'static str = "
@@ -152,24 +179,30 @@ fn initialize_opengl() -> RendererState {
         vbo: buffer,
         tbo: tc_buffer,
         brick_tex: Texture::load_file(~"brick.png").unwrap(),
-        rotation: Quat::identity(),
-        rota: 0.0, rotb: 0.0
     }
 }
 
-fn draw(state: &mut RendererState) {
+fn draw(state: &mut RendererState, camera: &CameraState) {
     state.program.bind();
     state.program.set_attribute_vec3("position", &state.vbo);
     state.program.set_attribute_vec2("texcoord", &state.tbo);
 
-    let (x, y, z) = (0.0, 0.0, -50.0);
+    let camera_matrix: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
+                                             0.0, 1.0, 0.0, 0.0,
+                                             0.0, 0.0, 1.0, 0.0,
+                                             -camera.position.x, -camera.position.y,
+                                             -camera.position.z, 1.0
+                                         );
+    let camera_matrix = camera.rotation.inverse().to_mat3().to_mat4().mul_m(&camera_matrix);
+
+
+    let (x, y, z) = (0.0, 0.0, -10.0);
     let modelview: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
                                          0.0, 1.0, 0.0, 0.0,
                                          0.0, 0.0, 1.0, 0.0,
                                          x,   y,   z,   1.0);
 
-    let rotation = state.rotation.to_mat3().to_mat4();
-    let modelview = modelview.mul_m(&rotation);
+    let modelview = camera_matrix.mul_m(&modelview);
 
     state.program.set_uniform_mat4("modelview", &modelview);
 

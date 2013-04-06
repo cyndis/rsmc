@@ -67,11 +67,13 @@ fn main() {
         glEnable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
+        glClearColor(0.53, 0.81, 0.98, 1.0);
 
         let mut game = GameState {
             world: Chunk::new(),
-            position: BaseVec3::new(0.0, 0.0, 0.0),
-            rot_x: 0.0, rot_y: 0.0
+            position: BaseVec3::new(8.0, 1.0, 8.0),
+            rot_x: 0.0, rot_y: 0.0,
+            target: NumVec::zero()
         };
 
         let mut state = initialize_opengl(&mut game);
@@ -100,18 +102,32 @@ fn main() {
             let up        = camera.rotation.mul_v(&BaseVec3::new(0.0, 1.0, 0.0));
             let rt        = fwd.cross(&up);
 
+            /* collision detection now works, but if we get too close, the
+             * the wall is clipped by the near clipping plane
+             */
+
+            let mut target_pos = game.position;
             if wnd.get_key(glfw::KEY_A) == glfw::PRESS {
-                game.position.add_self_v(&rt.mul_t(-dt*MOVE_SPEED));
+                target_pos.add_self_v(&rt.mul_t(-dt*MOVE_SPEED));
             }
             if wnd.get_key(glfw::KEY_D) == glfw::PRESS {
-                game.position.add_self_v(&rt.mul_t(dt*MOVE_SPEED));
+                target_pos.add_self_v(&rt.mul_t(dt*MOVE_SPEED));
             }
             if wnd.get_key(glfw::KEY_W) == glfw::PRESS {
-                game.position.add_self_v(&plane_fwd.mul_t(dt*MOVE_SPEED));
+                target_pos.add_self_v(&plane_fwd.mul_t(dt*MOVE_SPEED));
             }
             if wnd.get_key(glfw::KEY_S) == glfw::PRESS {
-                game.position.add_self_v(&plane_fwd.mul_t(-dt*MOVE_SPEED));
+                target_pos.add_self_v(&plane_fwd.mul_t(-dt*MOVE_SPEED));
             }
+
+            game.target = target_pos;
+
+            let target_pos =
+                match game.world.block_at(&target_pos) {
+                    Some(&chunk::Air) => target_pos,
+                    _ => game.position
+                };
+            game.position = target_pos;
 
             let cursor = wnd.get_cursor_pos();
             let (dx, dy) = match (cursor, last_cursor) { ((a,b),(c,d)) => (a-c,b-d) };
@@ -146,7 +162,8 @@ struct CameraState {
 struct GameState {
     world: Chunk,
     position: Vec3f,
-    rot_x: float, rot_y: float
+    rot_x: float, rot_y: float,
+    target: Vec3f
 }
 
 fn initialize_opengl(game: &mut GameState) -> RendererState {
@@ -187,7 +204,7 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
     let camera_matrix = camera.rotation.inverse().to_mat3().to_mat4().mul_m(&camera_matrix);
 
 
-    let (x, y, z) = (-8.0, 0.0, -8.0);
+    let (x, y, z) = (0.0, 0.0, 0.0);
     let modelview: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
                                          0.0, 1.0, 0.0, 0.0,
                                          0.0, 0.0, 1.0, 0.0,
@@ -205,5 +222,5 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
 
     game.world.draw_cached(&mut state.program);
 
-    state.font.draw(fmt!("P %?", game.position));
+    state.font.draw(fmt!("T %? B %?", game.target, game.world.block_at(&game.position)));
 }

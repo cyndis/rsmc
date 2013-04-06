@@ -3,6 +3,7 @@ use glcore::*;
 use buffer::Buffer;
 use shader::Program;
 
+#[deriving(Eq)]
 pub enum Block {
     Air,
     Brick
@@ -27,6 +28,13 @@ pub impl Chunk {
             blocks: [Brick, ..16*16*16],
             buffer_cache: None
         }
+    }
+
+    fn block_at(&self, pos: &Vec3f) -> Option<&'self Block> {
+        let (x, y, z) = (pos.x as int, pos.y as int, pos.z as int);
+        if x < 0 || x > 15 || y < 0 || y > 15 || z < 0 || z > 15 { return None }
+
+        Some(&self.blocks[y*16*16+z*16+x])
     }
 
     // x,z is the horizontal plane
@@ -64,7 +72,7 @@ pub impl Chunk {
                 Air => loop,
                 _ => ()
             }
-            vbuf.push_all_move(make_cube(x as float,y as float,z as float,0.5));
+            vbuf.push_all_move(make_cube(x as float+0.5,y as float+0.5,z as float+0.5,0.5));
             tbuf.push_all_move(make_cube_texcoord());
             nbuf.push_all_move(make_cube_normal());
         }

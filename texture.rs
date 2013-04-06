@@ -2,7 +2,8 @@ use stb_image::image::*;
 use glcore::*;
 
 pub struct Texture {
-    handle: u32
+    handle: u32,
+    target: GLenum
 }
 
 impl Drop for Texture {
@@ -17,31 +18,54 @@ extern {
     fn glTextureImage2DEXT(texture: GLuint, target: GLenum, level: GLint,
                            internalformat: GLenum, width: GLsizei, height: GLsizei,
                            border: GLint, format: GLenum, typ: GLenum, pixels: *GLvoid);
+    fn glTextureImage3DEXT(texture: GLuint, target: GLenum, level: GLint,
+                           internalformat: GLenum, width: GLsizei, height: GLsizei,
+                           depth: GLsizei, border: GLint, format: GLenum, typ: GLenum,
+                           pixels: *GLvoid);
     fn glBindMultiTextureEXT(unit: GLenum, target: GLenum, texture: GLuint);
 }
 
+pub enum TextureFormat {
+    SingleTexture,
+    TextureArray(uint)
+}
+
 pub impl Texture {
-    fn load_file(name: ~str) -> Option<Texture> {
+    fn load_file(name: ~str, format: TextureFormat) -> Option<Texture> {
         match load_with_depth(name, 3, false) {
             ImageU8(image) => {
                 let tex = 0u32;
 
                 glGenTextures(1, unsafe { ptr::addr_of(&tex) });
 
-                unsafe {
-                glTextureParameteriEXT(tex, GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-                glTextureParameteriEXT(tex, GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-                glTextureParameteriEXT(tex, GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-                glTextureParameteriEXT(tex, GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-                // GL_MAX_ANISOTROPY_EXT
-                glTextureParameteriEXT(tex, GL_TEXTURE_2D, 0x84FE, 16);
+                let target = match format {
+                    SingleTexture => GL_TEXTURE_2D,
+                    TextureArray(*) => GL_TEXTURE_2D_ARRAY
+                };
 
-                glTextureImage2DEXT(tex, GL_TEXTURE_2D, 0, GL_RGB, image.width as GLsizei,
-                                    image.height as GLsizei, 0, GL_RGB, GL_UNSIGNED_BYTE,
-                                    unsafe{ cast::transmute(&image.data[0]) });
+                unsafe {
+                glTextureParameteriEXT(tex, target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                glTextureParameteriEXT(tex, target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                glTextureParameteriEXT(tex, target, GL_TEXTURE_WRAP_S, GL_REPEAT);
+                glTextureParameteriEXT(tex, target, GL_TEXTURE_WRAP_T, GL_REPEAT);
+                // GL_MAX_ANISOTROPY_EXT
+                glTextureParameteriEXT(tex, target, 0x84FE, 16);
+
+                match format {
+                    SingleTexture => glTextureImage2DEXT(tex, GL_TEXTURE_2D, 0, GL_RGB,
+                                                         image.width as GLsizei,
+                                                         image.height as GLsizei, 0, GL_RGB,
+                                                         GL_UNSIGNED_BYTE,
+                                                         cast::transmute(&image.data[0])),
+                    TextureArray(n) => glTextureImage3DEXT(tex, GL_TEXTURE_2D_ARRAY, 0,
+                                                           GL_RGB, image.width as GLsizei,
+                                                           (image.height / n) as GLsizei,
+                                                           n as GLsizei, 0, GL_RGB, GL_UNSIGNED_BYTE,
+                                                           cast::transmute(&image.data[0]))
+                }
                 }
 
-                Some(Texture { handle: tex })
+                Some(Texture { handle: tex, target: target })
             },
             _ => None
         }
@@ -49,7 +73,7 @@ pub impl Texture {
 
     fn bind(&self, unit: u32) {
         unsafe {
-            glBindMultiTextureEXT(GL_TEXTURE0+unit, GL_TEXTURE_2D, self.handle);
+            glBindMultiTextureEXT(GL_TEXTURE0+unit, self.target, self.handle);
         }
     }
 }

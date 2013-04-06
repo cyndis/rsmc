@@ -54,7 +54,7 @@ pub impl Chunk {
         }
     }
 
-    fn generate_buffer_data(&self) -> (~[Vec3f], ~[Vec2f], ~[Vec3f]) {
+    fn generate_buffer_data(&self) -> (~[Vec3f], ~[Vec3f], ~[Vec3f]) {
         let mut vbuf = ~[];
         let mut tbuf = ~[];
         let mut nbuf = ~[];
@@ -101,7 +101,7 @@ pub impl Chunk {
             Some(ref cache) => {
                 program.set_attribute_vec3("position", &cache.position);
                 program.set_attribute_vec3("normal",   &cache.normal);
-                program.set_attribute_vec2("texcoord", &cache.texcoord);
+                program.set_attribute_vec3("texcoord", &cache.texcoord);
                 vertex_no = cache.vertex_no;
             },
             None => fail!(~"uninitialized buffer cache when drawing")
@@ -122,14 +122,14 @@ fn make_cube(x: float, y: float, z: float, n: float) -> ~[Vec3f] {
     ]
 }
 
-fn make_cube_texcoord() -> ~[Vec2f] {
+fn make_cube_texcoord() -> ~[Vec3f] {
     ~[
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
-        BaseVec2::new(0.0, 0.0), BaseVec2::new(0.0, 1.0), BaseVec2::new(1.0, 1.0), BaseVec2::new(1.0, 0.0),
+        BaseVec3::new(0.0, 0.0, 1.0), BaseVec3::new(0.0, 1.0, 1.0), BaseVec3::new(1.0, 1.0, 1.0), BaseVec3::new(1.0, 0.0, 1.0),
+        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
+        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
+        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
+        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
+        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
     ]
 }
 

@@ -3,6 +3,7 @@ use glcore::*;
 
 use shader::Program;
 use buffer::Buffer;
+use texture;
 use texture::Texture;
 use chunk;
 use chunk::Chunk;
@@ -147,12 +148,12 @@ struct GameState {
 static vertex_shader2: &'static str = "
 #version 330
 in vec3 position;
-in vec2 texcoord;
+in vec3 texcoord;
 in vec3 normal;
 uniform mat4 projection;
 uniform mat4 modelview;
 
-out vec2 v_texcoord;
+out vec3 v_texcoord;
 out vec3 v_position;
 
 out vec4 lieye;
@@ -170,17 +171,18 @@ void main() {
 
 static fragment_shader2: &'static str = "
 #version 330
+#extension GL_EXT_texture_array : enable
 layout (location = 0) out vec4 outputColor;
-uniform sampler2D texture;
+uniform sampler2DArray texture;
 
-in vec2 v_texcoord;
+in vec3 v_texcoord;
 in vec3 v_position;
 
 in vec4 lieye;
 in vec4 vneye;
 
 void main() {
-    vec4 Ld = texture2D(texture, v_texcoord);
+    vec4 Ld = texture2DArray(texture, v_texcoord);
 
     vec4 n_eye = normalize(vneye);
 
@@ -212,7 +214,7 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
 
     RendererState {
         program: program,
-        brick_tex: Texture::load_file(~"brick.png").unwrap(),
+        brick_tex: Texture::load_file(~"texes.png", texture::TextureArray(2)).unwrap(),
     }
 }
 

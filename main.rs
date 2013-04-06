@@ -65,7 +65,11 @@ fn main() {
         glEnable(GL_DEPTH_TEST);
         glDepthFunc(GL_LEQUAL);
 
-        let mut state = initialize_opengl();
+        let mut game = GameState {
+            world: Chunk::new()
+        };
+
+        let mut state = initialize_opengl(&mut game);
         let mut camera = CameraState {
             position: BaseVec3::new(1.05, -0.46, -29.3),
             rot_x: 0.0,
@@ -114,7 +118,7 @@ fn main() {
                 &Quat::from_angle_axis(camera.rot_y, &BaseVec3::new(1.0, 0.0, 0.0))
                              );
 
-            draw(&mut state, &camera);
+            draw(&mut state, &camera, &game);
 
             wnd.swap_buffers();
 
@@ -125,11 +129,7 @@ fn main() {
 
 struct RendererState {
     program: Program,
-    vbo: Buffer,
-    tbo: Buffer,
-    nbo: Buffer,
     brick_tex: Texture,
-    cube_no: uint
 }
 
 struct CameraState {
@@ -138,36 +138,9 @@ struct CameraState {
     rotation: Quatf
 }
 
-static vertex_shader: &'static str = "
-#version 330
-in vec3 position;
-in vec2 texcoord;
-uniform mat4 projection;
-uniform mat4 modelview;
-
-out vec2 v_texcoord;
-out vec3 v_position;
-
-void main() {
-    gl_Position = projection * modelview * vec4(position, 1.0);
-    v_texcoord = texcoord;
-    v_position = position;
+struct GameState {
+    world: Chunk
 }
-";
-
-static fragment_shader: &'static str = "
-#version 330
-layout (location = 0) out vec4 outputColor;
-uniform sampler2D texture;
-
-in vec2 v_texcoord;
-in vec3 v_position;
-
-void main() {
-    float attenuation = clamp(v_position.y / 16.0, 0.5, 1.0);
-    outputColor = attenuation * texture2D(texture, v_texcoord);
-}
-";
 
 static vertex_shader2: &'static str = "
 #version 330
@@ -215,52 +188,33 @@ void main() {
 }
 ";
 
-fn initialize_opengl() -> RendererState {
+fn initialize_opengl(game: &mut GameState) -> RendererState {
     glViewport(0, 0, 1280, 800);
 
-    let mut chunk = Chunk::new();
+    let chunk = &mut game.world;
     for chunk.each_block_mut |(x,y,z), block| {
         if y == 15 { *block = chunk::Air };
         if x < 15 && x > 0 && z < 15 && z > 0 { *block = chunk::Air };
         if y == 0 { *block = chunk::Brick };
     }
-
-    let (vertex_data, texcoord_data, normal_data) = chunk.generate_buffer_data();
-
-    let mut buffer = Buffer::new();
-    buffer.update(vertex_data);
-
-    let mut tc_buffer = Buffer::new();
-    tc_buffer.update(texcoord_data);
-
-    let mut n_buffer = Buffer::new();
-    n_buffer.update(normal_data);
+    chunk.update_buffer_cache();
 
     let mut program = Program::new(vertex_shader2, fragment_shader2);
 
     // lmath's perspective function gives wrong values
     //let projection = lmath::projection::perspective(65.0 / 180.0 * 3.1416, 800.0 / 480.0, 0.1, 60.0);
     //let projection = BaseMat4::new(0.9418, 0.0, 0.0, 0.0, 0.0, 1.5696, 0.0, 0.0, 0.0, 0.0, -1.003, -1.0, 0.0, 0.0, -0.20003, 0.0);
-    let projection = perspective(80.0 / 180.0 * 3.1416, 800.0 / 480.0, 0.1, 60.0);
+    let projection = perspective(67.5 / 180.0 * 3.1416, 800.0 / 480.0, 0.1, 60.0);
     io::println(fmt!("%?", projection));
     program.set_uniform_mat4("projection", &projection);
 
     RendererState {
         program: program,
-        vbo: buffer,
-        tbo: tc_buffer,
-        nbo: n_buffer,
         brick_tex: Texture::load_file(~"brick.png").unwrap(),
-        cube_no: vertex_data.len() / 24
     }
 }
 
-fn draw(state: &mut RendererState, camera: &CameraState) {
-    state.program.bind();
-    state.program.set_attribute_vec3("position", &state.vbo);
-    state.program.set_attribute_vec2("texcoord", &state.tbo);
-    state.program.set_attribute_vec3("normal", &state.nbo);
-
+fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
     let camera_matrix: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
                                              0.0, 1.0, 0.0, 0.0,
                                              0.0, 0.0, 1.0, 0.0,
@@ -278,6 +232,7 @@ fn draw(state: &mut RendererState, camera: &CameraState) {
 
     let modelview = camera_matrix.mul_m(&modelview);
 
+    state.program.bind();
     state.program.set_uniform_mat4("modelview", &modelview);
 
     state.brick_tex.bind(0);
@@ -285,5 +240,5 @@ fn draw(state: &mut RendererState, camera: &CameraState) {
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glDrawArrays(GL_QUADS, 0, 24*state.cube_no as i32);
+    game.world.draw_cached(&mut state.program);
 }

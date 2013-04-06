@@ -1,19 +1,31 @@
 use common::*;
+use glcore::*;
+use buffer::Buffer;
+use shader::Program;
 
 pub enum Block {
     Air,
     Brick
 }
 
+struct BufferCache {
+    position: Buffer,
+    texcoord: Buffer,
+    normal: Buffer,
+    vertex_no: uint
+}
+
 // 16x16x16 chunk
 pub struct Chunk {
-    blocks: [Block, ..16*16*16]
+    blocks: [Block, ..16*16*16],
+    buffer_cache: Option<BufferCache>
 }
 
 pub impl Chunk {
     fn new() -> Chunk {
         Chunk {
-            blocks: [Brick, ..16*16*16]
+            blocks: [Brick, ..16*16*16],
+            buffer_cache: None
         }
     }
 
@@ -58,6 +70,44 @@ pub impl Chunk {
         }
 
         (vbuf, tbuf, nbuf)
+    }
+
+    fn update_buffer_cache(&mut self) {
+        if self.buffer_cache.is_none() {
+            self.buffer_cache = Some(BufferCache {
+                position: Buffer::new(), texcoord: Buffer::new(), normal: Buffer::new(),
+                vertex_no: 0
+            });
+        }
+
+        let (v, t, n) = self.generate_buffer_data();
+        match self.buffer_cache {
+            Some(ref mut cache) => {
+                cache.position.update(v);
+                cache.texcoord.update(t);
+                cache.normal.update(n);
+                cache.vertex_no = v.len();
+            },
+            None => fail!(~"uninitialized buffer cache when populating")
+        }
+    }
+
+    fn draw_cached(&self, program: &mut Program) {
+        program.bind();
+
+        let vertex_no;
+
+        match self.buffer_cache {
+            Some(ref cache) => {
+                program.set_attribute_vec3("position", &cache.position);
+                program.set_attribute_vec3("normal",   &cache.normal);
+                program.set_attribute_vec2("texcoord", &cache.texcoord);
+                vertex_no = cache.vertex_no;
+            },
+            None => fail!(~"uninitialized buffer cache when drawing")
+        }
+
+        glDrawArrays(GL_QUADS, 0, vertex_no as i32);
     }
 }
 

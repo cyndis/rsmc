@@ -66,14 +66,14 @@ fn main() {
         glDepthFunc(GL_LEQUAL);
 
         let mut game = GameState {
-            world: Chunk::new()
+            world: Chunk::new(),
+            position: BaseVec3::new(0.0, 0.0, 0.0),
+            rot_x: 0.0, rot_y: 0.0
         };
 
         let mut state = initialize_opengl(&mut game);
         let mut camera = CameraState {
-            position: BaseVec3::new(1.05, -0.46, -29.3),
-            rot_x: 0.0,
-            rot_y: 0.0,
+            position: game.position.add_v(&BaseVec3::new(0.0, 2.5, 0.0)),/*BaseVec3::new(1.05, -0.46, -29.3)*/
             rotation: Quat::identity()
         };
 
@@ -89,9 +89,13 @@ fn main() {
             let dt = (time - last_update) as float;
             last_update = time;
 
-            let fwd = camera.rotation.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
-            let up  = camera.rotation.mul_v(&BaseVec3::new(0.0, 1.0, 0.0));
-            let rt  = fwd.cross(&up);
+            let rot_hori = Quat::from_angle_axis(game.rot_x, &BaseVec3::new(0.0, 1.0, 0.0));
+            let rot_vert = Quat::from_angle_axis(game.rot_y, &BaseVec3::new(1.0, 0.0, 0.0));
+
+            let plane_fwd = rot_hori.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
+            let fwd       = camera.rotation.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
+            let up        = camera.rotation.mul_v(&BaseVec3::new(0.0, 1.0, 0.0));
+            let rt        = fwd.cross(&up);
 
             if wnd.get_key(glfw::KEY_A) == glfw::PRESS {
                 camera.position.add_self_v(&rt.mul_t(-dt*MOVE_SPEED));
@@ -100,23 +104,20 @@ fn main() {
                 camera.position.add_self_v(&rt.mul_t(dt*MOVE_SPEED));
             }
             if wnd.get_key(glfw::KEY_W) == glfw::PRESS {
-                camera.position.add_self_v(&fwd.mul_t(dt*MOVE_SPEED));
+                camera.position.add_self_v(&plane_fwd.mul_t(dt*MOVE_SPEED));
             }
             if wnd.get_key(glfw::KEY_S) == glfw::PRESS {
-                camera.position.add_self_v(&fwd.mul_t(-dt*MOVE_SPEED));
+                camera.position.add_self_v(&plane_fwd.mul_t(-dt*MOVE_SPEED));
             }
 
             let cursor = wnd.get_cursor_pos();
             let (dx, dy) = match (cursor, last_cursor) { ((a,b),(c,d)) => (a-c,b-d) };
             last_cursor = cursor;
 
-            camera.rot_x -= (dx as float / 2800.0) * (3.1416 / 2.0);
-//            camera.rot_y -= (dy as float / 3800.0) * (3.1416 / 2.0);
+            game.rot_x -= (dx as float / 2800.0) * (3.1416 / 2.0);
+            game.rot_y -= (dy as float / 3800.0) * (3.1416 / 2.0);
 
-            camera.rotation = add_quat(
-                &Quat::from_angle_axis(camera.rot_x, &BaseVec3::new(0.0, 1.0, 0.0)),
-                &Quat::from_angle_axis(camera.rot_y, &BaseVec3::new(1.0, 0.0, 0.0))
-                             );
+            camera.rotation = rot_hori.mul_q(&rot_vert);
 
             draw(&mut state, &camera, &game);
 
@@ -134,12 +135,13 @@ struct RendererState {
 
 struct CameraState {
     position: Vec3f,
-    rot_x: float, rot_y: float,
     rotation: Quatf
 }
 
 struct GameState {
-    world: Chunk
+    world: Chunk,
+    position: Vec3f,
+    rot_x: float, rot_y: float
 }
 
 static vertex_shader2: &'static str = "
@@ -224,7 +226,7 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
     let camera_matrix = camera.rotation.inverse().to_mat3().to_mat4().mul_m(&camera_matrix);
 
 
-    let (x, y, z) = (0.0, -1.6, -30.0);
+    let (x, y, z) = (-8.0, 0.0, -8.0);
     let modelview: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
                                          0.0, 1.0, 0.0, 0.0,
                                          0.0, 0.0, 1.0, 0.0,

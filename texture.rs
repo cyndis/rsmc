@@ -43,6 +43,8 @@ pub impl Texture {
                     TextureArray(*) => GL_TEXTURE_2D_ARRAY
                 };
 
+                io::println(fmt!("image: width %? height %?", image.width, image.height));
+
                 unsafe {
                 glTextureParameteriEXT(tex, target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
                 glTextureParameteriEXT(tex, target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);

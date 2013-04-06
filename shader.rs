@@ -52,7 +52,7 @@ pub impl Program {
         }
     }
 
-    fn set_attribute_vec3(&mut self, attrib: &str, buffer: &Buffer) {
+    fn set_attribute_vec3(&self, attrib: &str, buffer: &Buffer) {
         glUseProgram(self.handle);
         buffer.bind();
         glVertexAttribPointer(self.attribute_location(attrib), 3, GL_DOUBLE,
@@ -60,7 +60,7 @@ pub impl Program {
         glEnableVertexAttribArray(self.attribute_location(attrib));
     }
 
-    fn set_attribute_vec2(&mut self, attrib: &str, buffer: &Buffer) {
+    fn set_attribute_vec2(&self, attrib: &str, buffer: &Buffer) {
         glUseProgram(self.handle);
         buffer.bind();
         glVertexAttribPointer(self.attribute_location(attrib), 2, GL_DOUBLE,
@@ -74,7 +74,7 @@ pub impl Program {
         }
     }
 
-    fn set_uniform_mat4(&mut self, uniform: &str, matrix: &Mat4f) {
+    fn set_uniform_mat4(&self, uniform: &str, matrix: &Mat4f) {
         self.bind();
 
         let mut mat: [f32, ..16] = [0.0f32, ..16];
@@ -88,7 +88,7 @@ pub impl Program {
         }
     }
 
-    fn set_uniform_int(&mut self, uniform: &str, value: int) {
+    fn set_uniform_int(&self, uniform: &str, value: int) {
         self.bind();
 
         glProgramUniform1i(self.handle, self.uniform_location(uniform) as i32, value as i32);

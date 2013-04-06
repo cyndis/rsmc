@@ -7,6 +7,8 @@ use texture;
 use texture::Texture;
 use chunk;
 use chunk::Chunk;
+use font;
+use font::Font;
 
 use common::*;
 
@@ -99,16 +101,16 @@ fn main() {
             let rt        = fwd.cross(&up);
 
             if wnd.get_key(glfw::KEY_A) == glfw::PRESS {
-                camera.position.add_self_v(&rt.mul_t(-dt*MOVE_SPEED));
+                game.position.add_self_v(&rt.mul_t(-dt*MOVE_SPEED));
             }
             if wnd.get_key(glfw::KEY_D) == glfw::PRESS {
-                camera.position.add_self_v(&rt.mul_t(dt*MOVE_SPEED));
+                game.position.add_self_v(&rt.mul_t(dt*MOVE_SPEED));
             }
             if wnd.get_key(glfw::KEY_W) == glfw::PRESS {
-                camera.position.add_self_v(&plane_fwd.mul_t(dt*MOVE_SPEED));
+                game.position.add_self_v(&plane_fwd.mul_t(dt*MOVE_SPEED));
             }
             if wnd.get_key(glfw::KEY_S) == glfw::PRESS {
-                camera.position.add_self_v(&plane_fwd.mul_t(-dt*MOVE_SPEED));
+                game.position.add_self_v(&plane_fwd.mul_t(-dt*MOVE_SPEED));
             }
 
             let cursor = wnd.get_cursor_pos();
@@ -119,6 +121,7 @@ fn main() {
             game.rot_y -= (dy as float / 3800.0) * (3.1416 / 2.0);
 
             camera.rotation = rot_hori.mul_q(&rot_vert);
+            camera.position = game.position.add_v(&BaseVec3::new(0.0, 2.5, 0.0));
 
             draw(&mut state, &camera, &game);
 
@@ -132,6 +135,7 @@ fn main() {
 struct RendererState {
     program: Program,
     brick_tex: Texture,
+    font: Font
 }
 
 struct CameraState {
@@ -145,53 +149,6 @@ struct GameState {
     rot_x: float, rot_y: float
 }
 
-static vertex_shader2: &'static str = "
-#version 330
-in vec3 position;
-in vec3 texcoord;
-in vec3 normal;
-uniform mat4 projection;
-uniform mat4 modelview;
-
-out vec3 v_texcoord;
-out vec3 v_position;
-
-out vec4 lieye;
-out vec4 vneye;
-
-void main() {
-    gl_Position = projection * modelview * vec4(position, 1.0);
-    v_texcoord = texcoord;
-    v_position = position;
-
-    lieye = modelview * vec4(2.0, 1.0, 1.0, 0.0);
-    vneye = modelview * vec4(normal, 0.0);
-}
-";
-
-static fragment_shader2: &'static str = "
-#version 330
-#extension GL_EXT_texture_array : enable
-layout (location = 0) out vec4 outputColor;
-uniform sampler2DArray texture;
-
-in vec3 v_texcoord;
-in vec3 v_position;
-
-in vec4 lieye;
-in vec4 vneye;
-
-void main() {
-    vec4 Ld = texture2DArray(texture, v_texcoord);
-
-    vec4 n_eye = normalize(vneye);
-
-    vec4 Ia = vec4(0.13, 0.13, 0.13, 1.0);
-    vec4 Id = vec4(0.75, 0.75, 0.75, 1.0) * max(dot(lieye, n_eye), 0.0);
-    outputColor = Ld * (Ia + Id);
-}
-";
-
 fn initialize_opengl(game: &mut GameState) -> RendererState {
     glViewport(0, 0, 1280, 800);
 
@@ -203,7 +160,8 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
     }
     chunk.update_buffer_cache();
 
-    let mut program = Program::new(vertex_shader2, fragment_shader2);
+    let mut program = Program::new(io::read_whole_file_str(&path::Path("shader.vert")).unwrap(),
+                                   io::read_whole_file_str(&path::Path("shader.frag")).unwrap());
 
     // lmath's perspective function gives wrong values
     //let projection = lmath::projection::perspective(65.0 / 180.0 * 3.1416, 800.0 / 480.0, 0.1, 60.0);
@@ -215,6 +173,7 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
     RendererState {
         program: program,
         brick_tex: Texture::load_file(~"texes.png", texture::TextureArray(2)).unwrap(),
+        font: Font::new(~"font.png", ~"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890{}[]()<>$*-+=/#_%^@\\&|~?'\"!,.;:")
     }
 }
 
@@ -245,4 +204,6 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     game.world.draw_cached(&mut state.program);
+
+    state.font.draw(fmt!("P %?", game.position));
 }

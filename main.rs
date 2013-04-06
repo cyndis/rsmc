@@ -106,7 +106,7 @@ fn main() {
              * the wall is clipped by the near clipping plane
              */
 
-            let mut target_pos = game.position;
+            let mut target_pos: Vec3f = NumVec::zero();
             if wnd.get_key(glfw::KEY_A) == glfw::PRESS {
                 target_pos.add_self_v(&rt.mul_t(-dt*MOVE_SPEED));
             }
@@ -120,14 +120,25 @@ fn main() {
                 target_pos.add_self_v(&plane_fwd.mul_t(-dt*MOVE_SPEED));
             }
 
-            game.target = target_pos;
+            let target_xv = BaseVec3::new(target_pos.x, 0.0, 0.0);
+            let target_zv = BaseVec3::new(0.0, 0.0, target_pos.z);
 
-            let target_pos =
-                match game.world.block_at(&target_pos) {
-                    Some(&chunk::Air) => target_pos,
-                    _ => game.position
-                };
-            game.position = target_pos;
+            let abs_xv = game.position.add_v(&target_xv);
+            let abs_zv = game.position.add_v(&target_zv);
+
+            game.position.add_self_v(&
+                match game.world.block_at(&abs_xv) {
+                    Some(&chunk::Air) => target_xv,
+                    _ => NumVec::zero()
+                }
+            );
+
+            game.position.add_self_v(&
+                match game.world.block_at(&abs_zv) {
+                    Some(&chunk::Air) => target_zv,
+                    _ => NumVec::zero()
+                }
+            );
 
             let cursor = wnd.get_cursor_pos();
             let (dx, dy) = match (cursor, last_cursor) { ((a,b),(c,d)) => (a-c,b-d) };
@@ -174,6 +185,8 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
         if y == 15 { *block = chunk::Air };
         if x < 15 && x > 0 && z < 15 && z > 0 { *block = chunk::Air };
         if y == 0 { *block = chunk::Brick };
+
+        if (x,y,z) == (4,1,4) { *block = chunk::Brick };
     }
     chunk.update_buffer_cache();
 

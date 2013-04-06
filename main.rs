@@ -73,7 +73,8 @@ fn main() {
             world: Chunk::new(),
             position: BaseVec3::new(8.0, 1.0, 8.0),
             rot_x: 0.0, rot_y: 0.0,
-            target: NumVec::zero()
+            target: NumVec::zero(),
+            vel_y: 0.0
         };
 
         let mut state = initialize_opengl(&mut game);
@@ -120,23 +121,59 @@ fn main() {
                 target_pos.add_self_v(&plane_fwd.mul_t(-dt*MOVE_SPEED));
             }
 
+
+            let stop_fall;
+            game.vel_y -= 30.0 * dt;
+            {
+            let below_pos = BaseVec3::new(game.position.x, game.position.y-0.001, game.position.z);
+            let block_below = game.world.block_at(&below_pos);
+            stop_fall =
+                match block_below {
+                    Some(&chunk::Air) => false,
+                    _ => true
+                };
+            }
+            if stop_fall { game.vel_y = 0.0; }
+
+            if wnd.get_key(glfw::KEY_SPACE) == glfw::PRESS && stop_fall {
+                game.vel_y = 8.0;
+            }
+
             let target_xv = BaseVec3::new(target_pos.x, 0.0, 0.0);
+            let target_yv = BaseVec3::new(0.0, game.vel_y*dt, 0.0);
             let target_zv = BaseVec3::new(0.0, 0.0, target_pos.z);
 
             let abs_xv = game.position.add_v(&target_xv);
+            let abs_yv = game.position.add_v(&target_yv);
             let abs_zv = game.position.add_v(&target_zv);
+
+            let rem_xm = if target_xv.x < 0.0 { game.position.x as int as float - game.position.x }
+                         else { game.position.x as int as float - game.position.x + 0.9999 };
+            let rem_ym = if target_yv.y < 0.0 { game.position.y as int as float - game.position.y }
+                         else { game.position.y as int as float - game.position.y + 0.9999 };
+            let rem_zm = if target_zv.z < 0.0 { game.position.z as int as float - game.position.z }
+                         else { game.position.z as int as float - game.position.z + 0.9999 };
+
+            /* there is probably a bug here allowing entering walls.. */
 
             game.position.add_self_v(&
                 match game.world.block_at(&abs_xv) {
                     Some(&chunk::Air) => target_xv,
-                    _ => NumVec::zero()
+                    _ => BaseVec3::new(rem_xm, 0.0, 0.0)
+                }
+            );
+
+            game.position.add_self_v(&
+                match game.world.block_at(&abs_yv) {
+                    Some(&chunk::Air) => target_yv,
+                    _ => BaseVec3::new(0.0, rem_ym, 0.0)
                 }
             );
 
             game.position.add_self_v(&
                 match game.world.block_at(&abs_zv) {
                     Some(&chunk::Air) => target_zv,
-                    _ => NumVec::zero()
+                    _ => BaseVec3::new(0.0, 0.0, rem_zm)
                 }
             );
 
@@ -174,7 +211,8 @@ struct GameState {
     world: Chunk,
     position: Vec3f,
     rot_x: float, rot_y: float,
-    target: Vec3f
+    target: Vec3f,
+    vel_y: float
 }
 
 fn initialize_opengl(game: &mut GameState) -> RendererState {
@@ -187,6 +225,8 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
         if y == 0 { *block = chunk::Brick };
 
         if (x,y,z) == (4,1,4) { *block = chunk::Brick };
+        if (x,y,z) == (4,1,5) { *block = chunk::Brick };
+        if (x,y,z) == (4,2,5) { *block = chunk::Brick };
     }
     chunk.update_buffer_cache();
 
@@ -235,5 +275,5 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
 
     game.world.draw_cached(&mut state.program);
 
-    state.font.draw(fmt!("T %? B %?", game.target, game.world.block_at(&game.position)));
+    state.font.draw(fmt!("B %? VY %? P %?", game.world.block_at(&game.position), game.vel_y, game.position));
 }

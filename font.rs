@@ -58,7 +58,7 @@ pub impl Font {
         self.program.set_attribute_vec3("position", &vbuf);
         self.program.set_attribute_vec3("texcoord", &tbuf);
 
-        let projection = lmath::projection::orthographic(0.0, 33.3, 0.0, 20.0, -1.0, 1.0);
+        let projection = lmath::projection::ortho(0.0, 33.3, 0.0, 20.0, -1.0, 1.0);
         self.program.set_uniform_mat4("projection", &projection);
         self.program.set_uniform_mat4("modelview", &BaseMat::identity());
 

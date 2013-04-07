@@ -30,8 +30,15 @@ pub impl Chunk {
         }
     }
 
-    fn block_at(&self, pos: &Vec3f) -> Option<&'self Block> {
-        let (x, y, z) = (pos.x as int, pos.y as int, pos.z as int);
+    fn block_at_vec(&self, pos: &Vec3f) -> Option<&'self Block> {
+        let cc = (pos.x, pos.y, pos.z).floor();
+
+        self.block_at(cc)
+    }
+
+    fn block_at(&self, cc: (int, int, int)) -> Option<&'self Block> {
+        let (x, y, z) = cc;
+
         if x < 0 || x > 15 || y < 0 || y > 15 || z < 0 || z > 15 { return None }
 
         Some(&self.blocks[y*16*16+z*16+x])

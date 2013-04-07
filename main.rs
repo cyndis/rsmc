@@ -7,6 +7,7 @@ use texture;
 use texture::Texture;
 use chunk;
 use chunk::Chunk;
+use world::World;
 use font;
 use font::Font;
 
@@ -58,7 +59,7 @@ fn main() {
         glClearColor(0.53, 0.81, 0.98, 1.0);
 
         let mut game = GameState {
-            world: Chunk::new(),
+            world: World::new(),
             position: BaseVec3::new(8.0, 1.0, 8.0),
             rot_x: 0.0, rot_y: 0.0,
             target: NumVec::zero(),
@@ -67,7 +68,7 @@ fn main() {
 
         let mut state = initialize_opengl(&mut game);
         let mut camera = CameraState {
-            position: game.position.add_v(&BaseVec3::new(0.0, 2.5, 0.0)),/*BaseVec3::new(1.05, -0.46, -29.3)*/
+            position: game.position.add_v(&BaseVec3::new(0.0, 2.5, 0.0)),
             rotation: Quat::identity()
         };
 
@@ -135,11 +136,15 @@ fn main() {
             let abs_yv = game.position.add_v(&target_yv);
             let abs_zv = game.position.add_v(&target_zv);
 
-            let rem_xm = if target_xv.x < 0.0 { game.position.x as int as float - game.position.x }
+            fn floor(x: float) -> float {
+                float::floor(x as f64) as float
+            }
+
+            let rem_xm = if target_xv.x < 0.0 { floor(game.position.x) - game.position.x }
                          else { game.position.x as int as float - game.position.x + 0.9999 };
-            let rem_ym = if target_yv.y < 0.0 { game.position.y as int as float - game.position.y }
+            let rem_ym = if target_yv.y < 0.0 { floor(game.position.y) - game.position.y }
                          else { game.position.y as int as float - game.position.y + 0.9999 };
-            let rem_zm = if target_zv.z < 0.0 { game.position.z as int as float - game.position.z }
+            let rem_zm = if target_zv.z < 0.0 { floor(game.position.z) - game.position.z }
                          else { game.position.z as int as float - game.position.z + 0.9999 };
 
             /* there is probably a bug here allowing entering walls.. */
@@ -178,8 +183,6 @@ fn main() {
             draw(&mut state, &camera, &game);
 
             wnd.swap_buffers();
-
-//            io::println(fmt!("%?", camera.position));
         }
     }
 }
@@ -196,7 +199,7 @@ struct CameraState {
 }
 
 struct GameState {
-    world: Chunk,
+    world: World,
     position: Vec3f,
     rot_x: float, rot_y: float,
     target: Vec3f,
@@ -205,18 +208,6 @@ struct GameState {
 
 fn initialize_opengl(game: &mut GameState) -> RendererState {
     glViewport(0, 0, 1280, 800);
-
-    let chunk = &mut game.world;
-    for chunk.each_block_mut |(x,y,z), block| {
-        if y == 15 { *block = chunk::Air };
-        if x < 15 && x > 0 && z < 15 && z > 0 { *block = chunk::Air };
-        if y == 0 { *block = chunk::Brick };
-
-        if (x,y,z) == (4,1,4) { *block = chunk::Brick };
-        if (x,y,z) == (4,1,5) { *block = chunk::Brick };
-        if (x,y,z) == (4,2,5) { *block = chunk::Brick };
-    }
-    chunk.update_buffer_cache();
 
     let mut program = Program::new(io::read_whole_file_str(&path::Path("shader.vert")).unwrap(),
                                    io::read_whole_file_str(&path::Path("shader.frag")).unwrap());
@@ -229,6 +220,11 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
         brick_tex: Texture::load_file(~"texes.png", texture::TextureArray(2)).unwrap(),
         font: Font::new(~"font.png", ~"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890{}[]()<>$*-+=/#_%^@\\&|~?'\"!,.;:")
     }
+}
+
+fn translation_matrix(t: (float, float, float)) -> Mat4f {
+    let (x,y,z) = t;
+    BaseMat4::new(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, x, y, z, 1.0)
 }
 
 fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
@@ -257,7 +253,12 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    game.world.draw_cached(&mut state.program);
+    for game.world.each_chunk |&(x,y,z), chunk| {
+        let modelview = camera_matrix.mul_m(&translation_matrix(
+            (x as float * 16.0,y as float * 16.0,z as float * 16.0)));
+        state.program.set_uniform_mat4("modelview", &modelview);
+        chunk.draw_cached(&mut state.program);
+    }
 
     state.font.draw(fmt!("B %? VY %? P %?", game.world.block_at(&game.position), game.vel_y, game.position));
 }

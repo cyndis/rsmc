@@ -36,18 +36,6 @@ fn debug_cb(_source: u32, _type: u32, _id: u32, _severity: u32, length: u32,
     println(string);
 }
 
-fn add_quat(a: &Quatf, b: &Quatf) -> Quatf {
-    Quat::from_sv(a.s*b.s - a.v.dot(&b.v),
-                  b.v.mul_t(a.s).add_v(&a.v.mul_t(b.s)).add_v(&a.v.cross(&b.v)))
-}
-
-fn perspective(fov_y: float, aspect: float, z_near: float, z_far: float) -> Mat4f {
-    let f = 1.0 / float::tan(0.5 * fov_y);
-    BaseMat4::new(f/aspect, 0.0, 0.0, 0.0, 0.0, f, 0.0, 0.0, 0.0, 0.0,
-                  (z_far + z_near) / (z_near - z_far), -1.0, 0.0, 0.0,
-                  (2.0 * z_far * z_near) / (z_near - z_far), 0.0)
-}
-
 static MOVE_SPEED: float = 5.0f;
 
 fn main() {
@@ -233,11 +221,7 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
     let mut program = Program::new(io::read_whole_file_str(&path::Path("shader.vert")).unwrap(),
                                    io::read_whole_file_str(&path::Path("shader.frag")).unwrap());
 
-    // lmath's perspective function gives wrong values
-    //let projection = lmath::projection::perspective(65.0 / 180.0 * 3.1416, 800.0 / 480.0, 0.1, 60.0);
-    //let projection = BaseMat4::new(0.9418, 0.0, 0.0, 0.0, 0.0, 1.5696, 0.0, 0.0, 0.0, 0.0, -1.003, -1.0, 0.0, 0.0, -0.20003, 0.0);
-    let projection = perspective(67.5 / 180.0 * 3.1416, 800.0 / 480.0, 0.1, 60.0);
-    io::println(fmt!("%?", projection));
+    let projection = lmath::projection::perspective(67.5, 800.0 / 480.0, 0.1, 60.0);
     program.set_uniform_mat4("projection", &projection);
 
     RendererState {

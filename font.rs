@@ -9,20 +9,12 @@ use buffer::Buffer;
 use glcore::*;
 use common::*;
 
+use lmath;
+
 struct Font {
    texture: Texture,
    program: Program,
    map: ~str
-}
-
-fn ortho(left: float, right: float, bottom: float, top: float, near: float, far: float) -> Mat4f {
-    let tx = -(right+left)/(right-left);
-    let ty = -(top+bottom)/(top-bottom);
-    let tz = -(far+near)/(far-near);
-    BaseMat4::new(2.0/(right-left), 0.0, 0.0, 0.0,
-                  0.0, 2.0/(top-bottom), 0.0, 0.0,
-                  0.0, 0.0, -2.0/(far-near), 0.0,
-                  tx, ty, tz, 1.0)
 }
 
 pub impl Font {
@@ -66,7 +58,7 @@ pub impl Font {
         self.program.set_attribute_vec3("position", &vbuf);
         self.program.set_attribute_vec3("texcoord", &tbuf);
 
-        let projection = ortho(0.0, 33.3, 0.0, 20.0, -1.0, 1.0);
+        let projection = lmath::projection::orthographic(0.0, 33.3, 0.0, 20.0, -1.0, 1.0);
         self.program.set_uniform_mat4("projection", &projection);
         self.program.set_uniform_mat4("modelview", &BaseMat::identity());
 

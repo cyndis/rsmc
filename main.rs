@@ -64,7 +64,8 @@ fn main() {
             player: Player {
                 position: BaseVec3::new(8.0, 1.0, 8.0),
                 rot_x: 0.0, rot_y: 0.0,
-                vel_y: 0.0
+                vel_y: 0.0,
+                mining_target: None
             }
         };
 
@@ -209,11 +210,27 @@ fn main() {
                     Some((cc,_)) => Some(cc),
                     None => None
                 };
-                match replace {
-                    Some(cc) => game.world.replace_block(cc, chunk::Air),
-                    None => ()
+                game.player.mining_target =
+                match (replace, game.player.mining_target) {
+                    (None, _) => None,
+                    (Some(cc), None) => Some((cc, glfw::get_time() as float)),
+                    (Some(cc1), Some((cc2, _))) => {
+                        if cc1 == cc2 { game.player.mining_target }
+                        else { Some((cc1, glfw::get_time() as float)) }
+                    }
                 };
-            };
+            } else {
+                game.player.mining_target = None;
+            }
+
+            match game.player.mining_target {
+                None => (),
+                Some((cc, start)) => {
+                    if glfw::get_time() as float - start > game.world.block_at(cc).unwrap().breaking_time() {
+                        game.world.replace_block(cc, chunk::Air);
+                    }
+                }
+            }
 
             draw(&mut state, &camera, &game);
 
@@ -237,12 +254,13 @@ struct Player {
     position: Vec3f,
     rot_x: float,
     rot_y: float,
-    vel_y: float
+    vel_y: float,
+    mining_target: Option<((int,int,int), float)>
 }
 
 struct GameState {
     world: World,
-    player: Player
+    player: Player,
 }
 
 fn initialize_opengl(game: &mut GameState) -> RendererState {

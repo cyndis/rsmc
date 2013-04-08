@@ -36,6 +36,10 @@ pub impl Block {
             Dirt => 2
         }
     }
+
+    fn breaking_time(&self) -> float {
+        0.5
+    }
 }
 
 struct BufferCache {

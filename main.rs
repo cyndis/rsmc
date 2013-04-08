@@ -48,6 +48,7 @@ fn main() {
         wnd.make_context_current();
         wnd.set_key_callback(key_cb);
         wnd.set_input_mode(glfw::CURSOR_MODE, glfw::CURSOR_CAPTURED as int);
+        wnd.set_input_mode(glfw::STICKY_MOUSE_BUTTONS, GL_TRUE as int);
 
         glfw::set_swap_interval(1);
 
@@ -115,7 +116,7 @@ fn main() {
             game.vel_y -= 30.0 * dt;
             {
             let below_pos = BaseVec3::new(game.position.x, game.position.y-0.001, game.position.z);
-            let block_below = game.world.block_at(&below_pos);
+            let block_below = game.world.block_at_vec(&below_pos);
             stop_fall =
                 match block_below {
                     Some(&chunk::Air) => false,
@@ -132,43 +133,60 @@ fn main() {
             let target_yv = BaseVec3::new(0.0, game.vel_y*dt, 0.0);
             let target_zv = BaseVec3::new(0.0, 0.0, target_pos.z);
 
-            let abs_xv = game.position.add_v(&target_xv);
-            let abs_yv = game.position.add_v(&target_yv);
-            let abs_zv = game.position.add_v(&target_zv);
-
             fn floor(x: float) -> float {
                 float::floor(x as f64) as float
             }
 
-            let rem_xm = if target_xv.x < 0.0 { floor(game.position.x) - game.position.x }
-                         else { game.position.x as int as float - game.position.x + 0.9999 };
+            let handle_x = || {
+                let abs_xv = game.position.add_v(&target_xv);
+                let rem_xm = if target_xv.x < 0.0 { floor(game.position.x) - game.position.x }
+                            else { floor(game.position.x) - game.position.x + 0.9999 };
+
+                game.position.add_self_v(&
+                    match game.world.block_at_vec(&abs_xv) {
+                        Some(&chunk::Air) => target_xv,
+                        _ => BaseVec3::new(rem_xm, 0.0, 0.0)
+                    }
+                );
+            };
+
+            let handle_z = || {
+                let abs_zv = game.position.add_v(&target_zv);
+                let rem_zm = if target_zv.z < 0.0 { floor(game.position.z) - game.position.z }
+                            else { floor(game.position.z) - game.position.z + 0.9999 };
+
+                game.position.add_self_v(&
+                    match game.world.block_at_vec(&abs_zv) {
+                        Some(&chunk::Air) => target_zv,
+                        _ => BaseVec3::new(0.0, 0.0, rem_zm)
+                    }
+                );
+            };
+
+            let abs_yv = game.position.add_v(&target_yv);
             let rem_ym = if target_yv.y < 0.0 { floor(game.position.y) - game.position.y }
-                         else { game.position.y as int as float - game.position.y + 0.9999 };
-            let rem_zm = if target_zv.z < 0.0 { floor(game.position.z) - game.position.z }
-                         else { game.position.z as int as float - game.position.z + 0.9999 };
-
-            /* there is probably a bug here allowing entering walls.. */
+                         else { floor(game.position.y) - game.position.y + 0.9999 };
 
             game.position.add_self_v(&
-                match game.world.block_at(&abs_xv) {
-                    Some(&chunk::Air) => target_xv,
-                    _ => BaseVec3::new(rem_xm, 0.0, 0.0)
-                }
-            );
-
-            game.position.add_self_v(&
-                match game.world.block_at(&abs_yv) {
+                match game.world.block_at_vec(&abs_yv) {
                     Some(&chunk::Air) => target_yv,
                     _ => BaseVec3::new(0.0, rem_ym, 0.0)
                 }
             );
 
-            game.position.add_self_v(&
-                match game.world.block_at(&abs_zv) {
-                    Some(&chunk::Air) => target_zv,
-                    _ => BaseVec3::new(0.0, 0.0, rem_zm)
-                }
-            );
+            /* This is so that when jumping in a corner, we go the direction the player is pointing
+             * at more
+             */
+            if float::abs(target_pos.dot(&BaseVec3::new(1.0, 0.0, 0.0))) >
+                 float::abs(target_pos.dot(&BaseVec3::new(0.0, 0.0, 1.0)))
+            {
+                handle_x();
+                handle_z();
+            } else {
+                handle_z();
+                handle_x();
+            }
+
 
             let cursor = wnd.get_cursor_pos();
             let (dx, dy) = match (cursor, last_cursor) { ((a,b),(c,d)) => (a-c,b-d) };
@@ -178,7 +196,22 @@ fn main() {
             game.rot_y -= (dy as float / 3800.0) * (3.1416 / 2.0);
 
             camera.rotation = rot_hori.mul_q(&rot_vert);
-            camera.position = game.position.add_v(&BaseVec3::new(0.0, 2.5, 0.0));
+            camera.position = game.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0));
+
+            if wnd.get_mouse_button(glfw::MOUSE_BUTTON_LEFT) == glfw::PRESS {
+                // ugh
+                let replace =
+                match game.world.cast_ray(
+                    &game.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd)
+                {
+                    Some((cc,_)) => Some(cc),
+                    None => None
+                };
+                match replace {
+                    Some(cc) => game.world.replace_block(cc, chunk::Air),
+                    None => ()
+                };
+            };
 
             draw(&mut state, &camera, &game);
 
@@ -217,7 +250,7 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
 
     RendererState {
         program: program,
-        brick_tex: Texture::load_file(~"texes.png", texture::TextureArray(2)).unwrap(),
+        brick_tex: Texture::load_file(~"texes2.png", texture::TextureArray(4)).unwrap(),
         font: Font::new(~"font.png", ~"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890{}[]()<>$*-+=/#_%^@\\&|~?'\"!,.;:")
     }
 }
@@ -260,5 +293,8 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
         chunk.draw_cached(&mut state.program);
     }
 
-    state.font.draw(fmt!("B %? VY %? P %?", game.world.block_at(&game.position), game.vel_y, game.position));
+    let fwd = camera.rotation.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
+    let target = game.world.cast_ray(&game.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd);
+
+    state.font.draw(fmt!("T %?", target));
 }

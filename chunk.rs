@@ -6,7 +6,36 @@ use shader::Program;
 #[deriving(Eq)]
 pub enum Block {
     Air,
-    Brick
+    Grass,
+    Stone,
+    Dirt
+}
+
+pub impl Block {
+    fn blocks(&self) -> bool {
+        match *self {
+            Air => false,
+            Grass | Stone | Dirt => true
+        }
+    }
+
+    fn top_texture_id(&self) -> uint {
+        match *self {
+            Air => 0,
+            Grass => 0,
+            Stone => 1,
+            Dirt => 2
+        }
+    }
+
+    fn side_texture_id(&self) -> uint {
+        match *self {
+            Air => 0,
+            Grass => 3,
+            Stone => 1,
+            Dirt => 2
+        }
+    }
 }
 
 struct BufferCache {
@@ -25,7 +54,7 @@ pub struct Chunk {
 pub impl Chunk {
     fn new() -> Chunk {
         Chunk {
-            blocks: [Brick, ..16*16*16],
+            blocks: [Stone, ..16*16*16],
             buffer_cache: None
         }
     }
@@ -42,6 +71,14 @@ pub impl Chunk {
         if x < 0 || x > 15 || y < 0 || y > 15 || z < 0 || z > 15 { return None }
 
         Some(&self.blocks[y*16*16+z*16+x])
+    }
+
+    fn block_at_mut(&mut self, cc: (int, int, int)) -> Option<&'self mut Block> {
+        let (x, y, z) = cc;
+
+        if x < 0 || x > 15 || y < 0 || y > 15 || z < 0 || z > 15 { return None }
+
+        Some(&mut self.blocks[y*16*16+z*16+x])
     }
 
     // x,z is the horizontal plane
@@ -80,7 +117,7 @@ pub impl Chunk {
                 _ => ()
             }
             vbuf.push_all_move(make_cube(x as float+0.5,y as float+0.5,z as float+0.5,0.5));
-            tbuf.push_all_move(make_cube_texcoord());
+            tbuf.push_all_move(make_cube_texcoord(block.top_texture_id(), block.side_texture_id()));
             nbuf.push_all_move(make_cube_normal());
         }
 
@@ -137,14 +174,16 @@ fn make_cube(x: float, y: float, z: float, n: float) -> ~[Vec3f] {
     ]
 }
 
-fn make_cube_texcoord() -> ~[Vec3f] {
+fn make_cube_texcoord(tid: uint, tid2: uint) -> ~[Vec3f] {
+    let tid = tid as float;
+    let tid2 = tid2 as float;
     ~[
-        BaseVec3::new(0.0, 0.0, 1.0), BaseVec3::new(0.0, 1.0, 1.0), BaseVec3::new(1.0, 1.0, 1.0), BaseVec3::new(1.0, 0.0, 1.0),
-        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
-        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
-        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
-        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
-        BaseVec3::new(0.0, 0.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(1.0, 1.0, 0.0), BaseVec3::new(1.0, 0.0, 0.0),
+        BaseVec3::new(0.0, 0.0, tid), BaseVec3::new(0.0, 1.0, tid), BaseVec3::new(1.0, 1.0, tid), BaseVec3::new(1.0, 0.0, tid),
+        BaseVec3::new(0.0, 0.0, tid2), BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2),
+        BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2), BaseVec3::new(0.0, 0.0, tid2),
+        BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2), BaseVec3::new(0.0, 0.0, tid2),
+        BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2), BaseVec3::new(0.0, 0.0, tid2),
+        BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2), BaseVec3::new(0.0, 0.0, tid2),
     ]
 }
 

@@ -16,6 +16,6 @@ void main() {
     v_texcoord = texcoord;
     v_position = position;
 
-    lieye = modelview * vec4(2.0, 1.0, 1.0, 0.0);
+    lieye = modelview * vec4(0.0, 1.0, 0.0, 0.0);
     vneye = modelview * vec4(normal, 0.0);
 }

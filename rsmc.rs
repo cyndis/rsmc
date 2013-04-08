@@ -12,3 +12,5 @@ pub mod common;
 
 pub mod chunk;
 pub mod world;
+
+pub mod noise;

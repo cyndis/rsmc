@@ -66,7 +66,8 @@ fn main() {
                 rot_x: 0.0, rot_y: 0.0,
                 vel_y: 0.0,
                 mining_target: None
-            }
+            },
+            left_button_state: false
         };
 
         let mut state = initialize_opengl(&mut game);
@@ -223,6 +224,29 @@ fn main() {
                 game.player.mining_target = None;
             }
 
+            match wnd.get_mouse_button(glfw::MOUSE_BUTTON_RIGHT) {
+                glfw::PRESS if game.left_button_state == false => {
+                    game.left_button_state = true;
+                    let mut replace = None;
+                    {
+                        let block = game.world.cast_ray_previous(
+                            &game.player.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd);
+                        match block {
+                            None => (),
+                            Some((cc, b)) => replace = Some(cc)
+                        }
+                    }
+                    match replace {
+                        None => (),
+                        Some(cc) => game.world.replace_block(cc, chunk::Stone)
+                    }
+                },
+                glfw::RELEASE => {
+                    game.left_button_state = false;
+                },
+                _ => ()
+            }
+
             match game.player.mining_target {
                 None => (),
                 Some((cc, start)) => {
@@ -261,6 +285,7 @@ struct Player {
 struct GameState {
     world: World,
     player: Player,
+    left_button_state: bool
 }
 
 fn initialize_opengl(game: &mut GameState) -> RendererState {

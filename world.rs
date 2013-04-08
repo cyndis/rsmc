@@ -135,6 +135,28 @@ pub impl World {
         None
     }
 
+    fn cast_ray_previous(&self, origin: &Vec3f, direction: &Vec3f) ->
+        Option<((int, int, int), &'self chunk::Block)>
+    {
+        // stupid algorithm
+        let d = direction.normalize().mul_t(0.1);
+
+        let mut prev = None;
+
+        for uint::range(0, 8*8) |i| {
+            let pos = origin.add_v(&d.mul_t(i as float));
+
+            let block = self.block_at_vec(&pos);
+            match block {
+                None => (),
+                Some(b) if *b == chunk::Air => prev = Some(((pos.x, pos.y, pos.z).floor(), b)),
+                Some(b) => return prev
+            };
+        }
+
+        None
+    }
+
     fn replace_block(&mut self, cc: (int, int, int), new_block: chunk::Block) {
         let (x, y, z) = cc;
 

@@ -61,15 +61,16 @@ fn main() {
 
         let mut game = GameState {
             world: World::new(),
-            position: BaseVec3::new(8.0, 1.0, 8.0),
-            rot_x: 0.0, rot_y: 0.0,
-            target: NumVec::zero(),
-            vel_y: 0.0
+            player: Player {
+                position: BaseVec3::new(8.0, 1.0, 8.0),
+                rot_x: 0.0, rot_y: 0.0,
+                vel_y: 0.0
+            }
         };
 
         let mut state = initialize_opengl(&mut game);
         let mut camera = CameraState {
-            position: game.position.add_v(&BaseVec3::new(0.0, 2.5, 0.0)),
+            position: game.player.position.add_v(&BaseVec3::new(0.0, 2.5, 0.0)),
             rotation: Quat::identity()
         };
 
@@ -85,8 +86,8 @@ fn main() {
             let dt = (time - last_update) as float;
             last_update = time;
 
-            let rot_hori = Quat::from_angle_axis(game.rot_x, &BaseVec3::new(0.0, 1.0, 0.0));
-            let rot_vert = Quat::from_angle_axis(game.rot_y, &BaseVec3::new(1.0, 0.0, 0.0));
+            let rot_hori = Quat::from_angle_axis(game.player.rot_x, &BaseVec3::new(0.0, 1.0, 0.0));
+            let rot_vert = Quat::from_angle_axis(game.player.rot_y, &BaseVec3::new(1.0, 0.0, 0.0));
 
             let plane_fwd = rot_hori.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
             let fwd       = camera.rotation.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
@@ -113,9 +114,10 @@ fn main() {
 
 
             let stop_fall;
-            game.vel_y -= 30.0 * dt;
+            game.player.vel_y -= 30.0 * dt;
             {
-            let below_pos = BaseVec3::new(game.position.x, game.position.y-0.001, game.position.z);
+            let below_pos = BaseVec3::new(game.player.position.x, game.player.position.y-0.001,
+                                          game.player.position.z);
             let block_below = game.world.block_at_vec(&below_pos);
             stop_fall =
                 match block_below {
@@ -123,14 +125,14 @@ fn main() {
                     _ => true
                 };
             }
-            if stop_fall { game.vel_y = 0.0; }
+            if stop_fall { game.player.vel_y = 0.0; }
 
             if wnd.get_key(glfw::KEY_SPACE) == glfw::PRESS && stop_fall {
-                game.vel_y = 8.0;
+                game.player.vel_y = 8.0;
             }
 
             let target_xv = BaseVec3::new(target_pos.x, 0.0, 0.0);
-            let target_yv = BaseVec3::new(0.0, game.vel_y*dt, 0.0);
+            let target_yv = BaseVec3::new(0.0, game.player.vel_y*dt, 0.0);
             let target_zv = BaseVec3::new(0.0, 0.0, target_pos.z);
 
             fn floor(x: float) -> float {
@@ -138,11 +140,11 @@ fn main() {
             }
 
             let handle_x = || {
-                let abs_xv = game.position.add_v(&target_xv);
-                let rem_xm = if target_xv.x < 0.0 { floor(game.position.x) - game.position.x }
-                            else { floor(game.position.x) - game.position.x + 0.9999 };
+                let abs_xv = game.player.position.add_v(&target_xv);
+                let rem_xm = if target_xv.x < 0.0 { floor(game.player.position.x) - game.player.position.x }
+                             else { floor(game.player.position.x) - game.player.position.x + 0.9999 };
 
-                game.position.add_self_v(&
+                game.player.position.add_self_v(&
                     match game.world.block_at_vec(&abs_xv) {
                         Some(&chunk::Air) => target_xv,
                         _ => BaseVec3::new(rem_xm, 0.0, 0.0)
@@ -151,11 +153,11 @@ fn main() {
             };
 
             let handle_z = || {
-                let abs_zv = game.position.add_v(&target_zv);
-                let rem_zm = if target_zv.z < 0.0 { floor(game.position.z) - game.position.z }
-                            else { floor(game.position.z) - game.position.z + 0.9999 };
+                let abs_zv = game.player.position.add_v(&target_zv);
+                let rem_zm = if target_zv.z < 0.0 { floor(game.player.position.z) - game.player.position.z }
+                             else { floor(game.player.position.z) - game.player.position.z + 0.9999 };
 
-                game.position.add_self_v(&
+                game.player.position.add_self_v(&
                     match game.world.block_at_vec(&abs_zv) {
                         Some(&chunk::Air) => target_zv,
                         _ => BaseVec3::new(0.0, 0.0, rem_zm)
@@ -163,11 +165,11 @@ fn main() {
                 );
             };
 
-            let abs_yv = game.position.add_v(&target_yv);
-            let rem_ym = if target_yv.y < 0.0 { floor(game.position.y) - game.position.y }
-                         else { floor(game.position.y) - game.position.y + 0.9999 };
+            let abs_yv = game.player.position.add_v(&target_yv);
+            let rem_ym = if target_yv.y < 0.0 { floor(game.player.position.y) - game.player.position.y }
+                         else { floor(game.player.position.y) - game.player.position.y + 0.9999 };
 
-            game.position.add_self_v(&
+            game.player.position.add_self_v(&
                 match game.world.block_at_vec(&abs_yv) {
                     Some(&chunk::Air) => target_yv,
                     _ => BaseVec3::new(0.0, rem_ym, 0.0)
@@ -192,17 +194,17 @@ fn main() {
             let (dx, dy) = match (cursor, last_cursor) { ((a,b),(c,d)) => (a-c,b-d) };
             last_cursor = cursor;
 
-            game.rot_x -= (dx as float / 2800.0) * (3.1416 / 2.0);
-            game.rot_y -= (dy as float / 3800.0) * (3.1416 / 2.0);
+            game.player.rot_x -= (dx as float / 2800.0) * (3.1416 / 2.0);
+            game.player.rot_y -= (dy as float / 3800.0) * (3.1416 / 2.0);
 
             camera.rotation = rot_hori.mul_q(&rot_vert);
-            camera.position = game.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0));
+            camera.position = game.player.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0));
 
             if wnd.get_mouse_button(glfw::MOUSE_BUTTON_LEFT) == glfw::PRESS {
                 // ugh
                 let replace =
                 match game.world.cast_ray(
-                    &game.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd)
+                    &game.player.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd)
                 {
                     Some((cc,_)) => Some(cc),
                     None => None
@@ -231,12 +233,16 @@ struct CameraState {
     rotation: Quatf
 }
 
+struct Player {
+    position: Vec3f,
+    rot_x: float,
+    rot_y: float,
+    vel_y: float
+}
+
 struct GameState {
     world: World,
-    position: Vec3f,
-    rot_x: float, rot_y: float,
-    target: Vec3f,
-    vel_y: float
+    player: Player
 }
 
 fn initialize_opengl(game: &mut GameState) -> RendererState {
@@ -294,7 +300,7 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
     }
 
     let fwd = camera.rotation.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
-    let target = game.world.cast_ray(&game.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd);
+    let target = game.world.cast_ray(&game.player.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd);
 
     state.font.draw(fmt!("T %?", target));
 }

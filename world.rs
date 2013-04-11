@@ -111,7 +111,7 @@ pub impl World {
     }
 
     fn each_chunk(&self, f: &fn(&(int,int,int), &'self Chunk) -> bool) {
-        for self.loaded_chunks.each |&(cc, chunk)| {
+        for self.loaded_chunks.each |cc, chunk| {
             if !f(cc, chunk) { return }
         }
     }

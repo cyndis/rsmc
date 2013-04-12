@@ -60,7 +60,7 @@ pub impl Font {
 
         let projection = lmath::projection::ortho(0.0, 33.3, 0.0, 20.0, -1.0, 1.0);
         self.program.set_uniform_mat4("projection", &projection);
-        self.program.set_uniform_mat4("modelview", &BaseMat::identity());
+        self.program.set_uniform_mat4("modelview", &Mat4f::identity());
 
         self.texture.bind(0);
         self.program.set_uniform_int("texture", 0);
@@ -110,8 +110,8 @@ void main() {
 
 fn make_cube(x: float, y: float) -> ~[Vec3f] {
     ~[
-        BaseVec3::new(x, y, 0.0), BaseVec3::new(x+0.5, y, 0.0),
-        BaseVec3::new(x+0.5, y+1.0, 0.0), BaseVec3::new(x, y+1.0, 0.0)
+        Vec3f::new(x, y, 0.0), Vec3f::new(x+0.5, y, 0.0),
+        Vec3f::new(x+0.5, y+1.0, 0.0), Vec3f::new(x, y+1.0, 0.0)
     ]
 }
 
@@ -119,7 +119,7 @@ fn make_cube(x: float, y: float) -> ~[Vec3f] {
 fn make_cube_texcoord(ch: uint) -> ~[Vec3f] {
     let ch = ch as float;
     ~[
-        BaseVec3::new(0.0, 0.625, ch), BaseVec3::new(0.625, 0.625, ch),
-        BaseVec3::new(0.625, 0.0, ch), BaseVec3::new(0.0, 0.0, ch)
+        Vec3f::new(0.0, 0.625, ch), Vec3f::new(0.625, 0.625, ch),
+        Vec3f::new(0.625, 0.0, ch), Vec3f::new(0.0, 0.0, ch)
     ]
 }

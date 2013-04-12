@@ -14,9 +14,6 @@ use font::Font;
 use common::*;
 
 use lmath;
-// for Mat3::to_mat4
-use lmath::mat::BaseMat3;
-use lmath::vec::{AffineVec, NumVec, NumVec3, BaseVec};
 
 fn error_cb(_error: libc::c_int, desc: ~str) {
     println(fmt!("GLFW error: %s", desc));
@@ -62,7 +59,7 @@ fn main() {
         let mut game = GameState {
             world: World::new(),
             player: Player {
-                position: BaseVec3::new(8.0, 1.0, 8.0),
+                position: Vec3f::new(8.0, 1.0, 8.0),
                 rot_x: 0.0, rot_y: 0.0,
                 vel_y: 0.0,
                 mining_target: None
@@ -72,8 +69,8 @@ fn main() {
 
         let mut state = initialize_opengl(&mut game);
         let mut camera = CameraState {
-            position: game.player.position.add_v(&BaseVec3::new(0.0, 2.5, 0.0)),
-            rotation: Quat::identity()
+            position: game.player.position.add_v(&Vec3f::new(0.0, 2.5, 0.0)),
+            rotation: Quatf::identity()
         };
 
         println("-- INITIALIZED --");
@@ -88,19 +85,19 @@ fn main() {
             let dt = (time - last_update) as float;
             last_update = time;
 
-            let rot_hori = Quat::from_angle_axis(game.player.rot_x, &BaseVec3::new(0.0, 1.0, 0.0));
-            let rot_vert = Quat::from_angle_axis(game.player.rot_y, &BaseVec3::new(1.0, 0.0, 0.0));
+            let rot_hori = Quatf::from_angle_axis(game.player.rot_x, &Vec3f::new(0.0, 1.0, 0.0));
+            let rot_vert = Quatf::from_angle_axis(game.player.rot_y, &Vec3f::new(1.0, 0.0, 0.0));
 
-            let plane_fwd = rot_hori.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
-            let fwd       = camera.rotation.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
-            let up        = camera.rotation.mul_v(&BaseVec3::new(0.0, 1.0, 0.0));
+            let plane_fwd = rot_hori.mul_v(&Vec3f::new(0.0, 0.0, -1.0));
+            let fwd       = camera.rotation.mul_v(&Vec3f::new(0.0, 0.0, -1.0));
+            let up        = camera.rotation.mul_v(&Vec3f::new(0.0, 1.0, 0.0));
             let rt        = fwd.cross(&up);
 
             /* collision detection now works, but if we get too close, the
              * the wall is clipped by the near clipping plane
              */
 
-            let mut target_pos: Vec3f = NumVec::zero();
+            let mut target_pos = Vec3f::zero();
             if wnd.get_key(glfw::KEY_A) == glfw::PRESS {
                 target_pos.add_self_v(&rt.mul_t(-dt*MOVE_SPEED));
             }
@@ -118,7 +115,7 @@ fn main() {
             let stop_fall;
             game.player.vel_y -= 30.0 * dt;
             {
-            let below_pos = BaseVec3::new(game.player.position.x, game.player.position.y-0.001,
+            let below_pos = Vec3f::new(game.player.position.x, game.player.position.y-0.001,
                                           game.player.position.z);
             let block_below = game.world.block_at_vec(&below_pos);
             stop_fall =
@@ -133,9 +130,9 @@ fn main() {
                 game.player.vel_y = 8.0;
             }
 
-            let target_xv = BaseVec3::new(target_pos.x, 0.0, 0.0);
-            let target_yv = BaseVec3::new(0.0, game.player.vel_y*dt, 0.0);
-            let target_zv = BaseVec3::new(0.0, 0.0, target_pos.z);
+            let target_xv = Vec3f::new(target_pos.x, 0.0, 0.0);
+            let target_yv = Vec3f::new(0.0, game.player.vel_y*dt, 0.0);
+            let target_zv = Vec3f::new(0.0, 0.0, target_pos.z);
 
             fn floor(x: float) -> float {
                 float::floor(x as f64) as float
@@ -149,7 +146,7 @@ fn main() {
                 game.player.position.add_self_v(&
                     match game.world.block_at_vec(&abs_xv) {
                         Some(&chunk::Air) => target_xv,
-                        _ => BaseVec3::new(rem_xm, 0.0, 0.0)
+                        _ => Vec3f::new(rem_xm, 0.0, 0.0)
                     }
                 );
             };
@@ -162,7 +159,7 @@ fn main() {
                 game.player.position.add_self_v(&
                     match game.world.block_at_vec(&abs_zv) {
                         Some(&chunk::Air) => target_zv,
-                        _ => BaseVec3::new(0.0, 0.0, rem_zm)
+                        _ => Vec3f::new(0.0, 0.0, rem_zm)
                     }
                 );
             };
@@ -174,15 +171,15 @@ fn main() {
             game.player.position.add_self_v(&
                 match game.world.block_at_vec(&abs_yv) {
                     Some(&chunk::Air) => target_yv,
-                    _ => BaseVec3::new(0.0, rem_ym, 0.0)
+                    _ => Vec3f::new(0.0, rem_ym, 0.0)
                 }
             );
 
             /* This is so that when jumping in a corner, we go the direction the player is pointing
              * at more
              */
-            if float::abs(target_pos.dot(&BaseVec3::new(1.0, 0.0, 0.0))) >
-                 float::abs(target_pos.dot(&BaseVec3::new(0.0, 0.0, 1.0)))
+            if float::abs(target_pos.dot(&Vec3f::new(1.0, 0.0, 0.0))) >
+                 float::abs(target_pos.dot(&Vec3f::new(0.0, 0.0, 1.0)))
             {
                 handle_x();
                 handle_z();
@@ -200,13 +197,13 @@ fn main() {
             game.player.rot_y -= (dy as float / 3800.0) * (3.1416 / 2.0);
 
             camera.rotation = rot_hori.mul_q(&rot_vert);
-            camera.position = game.player.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0));
+            camera.position = game.player.position.add_v(&Vec3f::new(0.0, 1.85, 0.0));
 
             if wnd.get_mouse_button(glfw::MOUSE_BUTTON_LEFT) == glfw::PRESS {
                 // ugh
                 let replace =
                 match game.world.cast_ray(
-                    &game.player.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd)
+                    &game.player.position.add_v(&Vec3f::new(0.0, 1.85, 0.0)), &fwd)
                 {
                     Some((cc,_)) => Some(cc),
                     None => None
@@ -230,7 +227,7 @@ fn main() {
                     let mut replace = None;
                     {
                         let block = game.world.cast_ray_previous(
-                            &game.player.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd);
+                            &game.player.position.add_v(&Vec3f::new(0.0, 1.85, 0.0)), &fwd);
                         match block {
                             None => (),
                             Some((cc, b)) => replace = Some(cc)
@@ -306,24 +303,24 @@ fn initialize_opengl(game: &mut GameState) -> RendererState {
 
 fn translation_matrix(t: (float, float, float)) -> Mat4f {
     let (x,y,z) = t;
-    BaseMat4::new(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, x, y, z, 1.0)
+    Mat4f::new(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, x, y, z, 1.0)
 }
 
 fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
-    let camera_matrix: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
-                                             0.0, 1.0, 0.0, 0.0,
-                                             0.0, 0.0, 1.0, 0.0,
-                                             -camera.position.x, -camera.position.y,
-                                             -camera.position.z, 1.0
-                                         );
+    let camera_matrix = Mat4f::new(1.0, 0.0, 0.0, 0.0,
+                                   0.0, 1.0, 0.0, 0.0,
+                                   0.0, 0.0, 1.0, 0.0,
+                                   -camera.position.x, -camera.position.y,
+                                     -camera.position.z, 1.0
+                                  );
     let camera_matrix = camera.rotation.inverse().to_mat3().to_mat4().mul_m(&camera_matrix);
 
 
     let (x, y, z) = (0.0, 0.0, 0.0);
-    let modelview: Mat4f = BaseMat4::new(1.0, 0.0, 0.0, 0.0,
-                                         0.0, 1.0, 0.0, 0.0,
-                                         0.0, 0.0, 1.0, 0.0,
-                                         x,   y,   z,   1.0);
+    let modelview = Mat4f::new(1.0, 0.0, 0.0, 0.0,
+                               0.0, 1.0, 0.0, 0.0,
+                               0.0, 0.0, 1.0, 0.0,
+                               x,   y,   z,   1.0);
 
     let modelview = camera_matrix.mul_m(&modelview);
 
@@ -342,8 +339,8 @@ fn draw(state: &mut RendererState, camera: &CameraState, game: &GameState) {
         chunk.draw_cached(&mut state.program);
     }
 
-    let fwd = camera.rotation.mul_v(&BaseVec3::new(0.0, 0.0, -1.0));
-    let target = game.world.cast_ray(&game.player.position.add_v(&BaseVec3::new(0.0, 1.85, 0.0)), &fwd);
+    let fwd = camera.rotation.mul_v(&Vec3f::new(0.0, 0.0, -1.0));
+    let target = game.world.cast_ray(&game.player.position.add_v(&Vec3f::new(0.0, 1.85, 0.0)), &fwd);
 
     state.font.draw(fmt!("T %?", target));
 }

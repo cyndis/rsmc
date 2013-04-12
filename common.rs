@@ -1,14 +1,12 @@
 use lmath;
-pub use lmath::vec::BaseVec2;
-pub use lmath::vec::BaseVec3;
-pub use lmath::mat::BaseMat4;
-pub use lmath::mat::BaseMat;
-pub use lmath::quat::Quat;
 
-pub type Vec2f = lmath::vec::Vec2<float>;
-pub type Vec3f = lmath::vec::Vec3<float>;
-pub type Mat4f = lmath::mat::Mat4<float>;
-pub type Quatf = lmath::quat::Quat<float>;
+pub use lmath::mat::*;
+pub use lmath::vec::*;
+
+pub use lmath::vec::Vec2f;
+pub use lmath::vec::Vec3f;
+pub use lmath::mat::Mat4f;
+pub use lmath::quat::Quatf;
 
 pub trait TripleFloor<Out> {
     fn floor(&self) -> (Out,Out,Out);

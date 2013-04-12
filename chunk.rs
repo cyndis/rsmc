@@ -167,37 +167,37 @@ pub impl Chunk {
     }
 }
 
-fn make_cube(x: float, y: float, z: float, n: float) -> ~[Vec3f] {
+pub fn make_cube(x: float, y: float, z: float, n: float) -> ~[Vec3f] {
     ~[
-        BaseVec3::new(x-n,y+n,z-n), BaseVec3::new(x-n,y+n,z+n), BaseVec3::new(x+n,y+n,z+n), BaseVec3::new(x+n,y+n,z-n),  // top
-        BaseVec3::new(x-n,y-n,z-n), BaseVec3::new(x+n,y-n,z-n), BaseVec3::new(x+n,y-n,z+n), BaseVec3::new(x-n,y-n,z+n),  // bottom
-        BaseVec3::new(x-n,y-n,z-n), BaseVec3::new(x-n,y-n,z+n), BaseVec3::new(x-n,y+n,z+n), BaseVec3::new(x-n,y+n,z-n),  // left
-        BaseVec3::new(x+n,y-n,z+n), BaseVec3::new(x+n,y-n,z-n), BaseVec3::new(x+n,y+n,z-n), BaseVec3::new(x+n,y+n,z+n),  // right
-        BaseVec3::new(x-n,y-n,z+n), BaseVec3::new(x+n,y-n,z+n), BaseVec3::new(x+n,y+n,z+n), BaseVec3::new(x-n,y+n,z+n),  // front
-        BaseVec3::new(x+n,y-n,z-n), BaseVec3::new(x-n,y-n,z-n), BaseVec3::new(x-n,y+n,z-n), BaseVec3::new(x+n,y+n,z-n),  // back
+        Vec3f::new(x-n,y+n,z-n), Vec3f::new(x-n,y+n,z+n), Vec3f::new(x+n,y+n,z+n), Vec3f::new(x+n,y+n,z-n),  // top
+        Vec3f::new(x-n,y-n,z-n), Vec3f::new(x+n,y-n,z-n), Vec3f::new(x+n,y-n,z+n), Vec3f::new(x-n,y-n,z+n),  // bottom
+        Vec3f::new(x-n,y-n,z-n), Vec3f::new(x-n,y-n,z+n), Vec3f::new(x-n,y+n,z+n), Vec3f::new(x-n,y+n,z-n),  // left
+        Vec3f::new(x+n,y-n,z+n), Vec3f::new(x+n,y-n,z-n), Vec3f::new(x+n,y+n,z-n), Vec3f::new(x+n,y+n,z+n),  // right
+        Vec3f::new(x-n,y-n,z+n), Vec3f::new(x+n,y-n,z+n), Vec3f::new(x+n,y+n,z+n), Vec3f::new(x-n,y+n,z+n),  // front
+        Vec3f::new(x+n,y-n,z-n), Vec3f::new(x-n,y-n,z-n), Vec3f::new(x-n,y+n,z-n), Vec3f::new(x+n,y+n,z-n),  // back
     ]
 }
 
-fn make_cube_texcoord(tid: uint, tid2: uint) -> ~[Vec3f] {
+pub fn make_cube_texcoord(tid: uint, tid2: uint) -> ~[Vec3f] {
     let tid = tid as float;
     let tid2 = tid2 as float;
     ~[
-        BaseVec3::new(0.0, 0.0, tid), BaseVec3::new(0.0, 1.0, tid), BaseVec3::new(1.0, 1.0, tid), BaseVec3::new(1.0, 0.0, tid),
-        BaseVec3::new(0.0, 0.0, tid2), BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2),
-        BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2), BaseVec3::new(0.0, 0.0, tid2),
-        BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2), BaseVec3::new(0.0, 0.0, tid2),
-        BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2), BaseVec3::new(0.0, 0.0, tid2),
-        BaseVec3::new(0.0, 1.0, tid2), BaseVec3::new(1.0, 1.0, tid2), BaseVec3::new(1.0, 0.0, tid2), BaseVec3::new(0.0, 0.0, tid2),
+        Vec3f::new(0.0, 0.0, tid), Vec3f::new(0.0, 1.0, tid), Vec3f::new(1.0, 1.0, tid), Vec3f::new(1.0, 0.0, tid),
+        Vec3f::new(0.0, 0.0, tid2), Vec3f::new(0.0, 1.0, tid2), Vec3f::new(1.0, 1.0, tid2), Vec3f::new(1.0, 0.0, tid2),
+        Vec3f::new(0.0, 1.0, tid2), Vec3f::new(1.0, 1.0, tid2), Vec3f::new(1.0, 0.0, tid2), Vec3f::new(0.0, 0.0, tid2),
+        Vec3f::new(0.0, 1.0, tid2), Vec3f::new(1.0, 1.0, tid2), Vec3f::new(1.0, 0.0, tid2), Vec3f::new(0.0, 0.0, tid2),
+        Vec3f::new(0.0, 1.0, tid2), Vec3f::new(1.0, 1.0, tid2), Vec3f::new(1.0, 0.0, tid2), Vec3f::new(0.0, 0.0, tid2),
+        Vec3f::new(0.0, 1.0, tid2), Vec3f::new(1.0, 1.0, tid2), Vec3f::new(1.0, 0.0, tid2), Vec3f::new(0.0, 0.0, tid2),
     ]
 }
 
-fn make_cube_normal() -> ~[Vec3f] {
+pub fn make_cube_normal() -> ~[Vec3f] {
     ~[
-        BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0), BaseVec3::new(0.0, 1.0, 0.0),
-        BaseVec3::new(0.0,-1.0, 0.0), BaseVec3::new(0.0,-1.0, 0.0), BaseVec3::new(0.0,-1.0, 0.0), BaseVec3::new(0.0,-1.0, 0.0),
-        BaseVec3::new(-1.0,0.0, 0.0), BaseVec3::new(-1.0,0.0, 0.0), BaseVec3::new(-1.0,0.0, 0.0), BaseVec3::new(-1.0,0.0, 0.0),
-        BaseVec3::new( 1.0,0.0, 0.0), BaseVec3::new( 1.0,0.0, 0.0), BaseVec3::new( 1.0,0.0, 0.0), BaseVec3::new( 1.0,0.0, 0.0),
-        BaseVec3::new(0.0,0.0,  1.0), BaseVec3::new(0.0,0.0,  1.0), BaseVec3::new(0.0,0.0,  1.0), BaseVec3::new(0.0,0.0,  1.0),
-        BaseVec3::new(0.0,0.0, -1.0), BaseVec3::new(0.0,0.0, -1.0), BaseVec3::new(0.0,0.0, -1.0), BaseVec3::new(0.0,0.0, -1.0),
+        Vec3f::new(0.0, 1.0, 0.0), Vec3f::new(0.0, 1.0, 0.0), Vec3f::new(0.0, 1.0, 0.0), Vec3f::new(0.0, 1.0, 0.0),
+        Vec3f::new(0.0,-1.0, 0.0), Vec3f::new(0.0,-1.0, 0.0), Vec3f::new(0.0,-1.0, 0.0), Vec3f::new(0.0,-1.0, 0.0),
+        Vec3f::new(-1.0,0.0, 0.0), Vec3f::new(-1.0,0.0, 0.0), Vec3f::new(-1.0,0.0, 0.0), Vec3f::new(-1.0,0.0, 0.0),
+        Vec3f::new( 1.0,0.0, 0.0), Vec3f::new( 1.0,0.0, 0.0), Vec3f::new( 1.0,0.0, 0.0), Vec3f::new( 1.0,0.0, 0.0),
+        Vec3f::new(0.0,0.0,  1.0), Vec3f::new(0.0,0.0,  1.0), Vec3f::new(0.0,0.0,  1.0), Vec3f::new(0.0,0.0,  1.0),
+        Vec3f::new(0.0,0.0, -1.0), Vec3f::new(0.0,0.0, -1.0), Vec3f::new(0.0,0.0, -1.0), Vec3f::new(0.0,0.0, -1.0),
     ]
 }

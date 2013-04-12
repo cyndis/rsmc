@@ -2,13 +2,10 @@ use glfw;
 use glcore::*;
 
 use shader::Program;
-use buffer::Buffer;
 use texture;
 use texture::Texture;
 use chunk;
-use chunk::Chunk;
 use world::World;
-use font;
 use font::Font;
 
 use common::*;
@@ -67,7 +64,7 @@ fn main() {
             left_button_state: false
         };
 
-        let mut state = initialize_opengl(&mut game);
+        let mut state = initialize_opengl();
         let mut camera = CameraState {
             position: game.player.position.add_v(&Vec3f::new(0.0, 2.5, 0.0)),
             rotation: Quatf::identity()
@@ -230,7 +227,7 @@ fn main() {
                             &game.player.position.add_v(&Vec3f::new(0.0, 1.85, 0.0)), &fwd);
                         match block {
                             None => (),
-                            Some((cc, b)) => replace = Some(cc)
+                            Some((cc, _)) => replace = Some(cc)
                         }
                     }
                     match replace {
@@ -285,7 +282,7 @@ struct GameState {
     left_button_state: bool
 }
 
-fn initialize_opengl(game: &mut GameState) -> RendererState {
+fn initialize_opengl() -> RendererState {
     glViewport(0, 0, 1280, 800);
 
     let mut program = Program::new(io::read_whole_file_str(&path::Path("shader.vert")).unwrap(),

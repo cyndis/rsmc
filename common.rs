@@ -1,5 +1,3 @@
-use lmath;
-
 pub use lmath::mat::*;
 pub use lmath::vec::*;
 

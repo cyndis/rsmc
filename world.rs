@@ -3,8 +3,6 @@ use chunk::Chunk;
 
 use noise::Noise2DContext;
 
-use shader::Program;
-
 use core::hashmap::HashMap;
 
 use common::*;
@@ -17,7 +15,7 @@ pub struct World {
 
 fn new_test_chunk() -> Chunk {
     let mut c = Chunk::new();
-    for c.each_block_mut |(x,y,z), block| {
+    for c.each_block_mut |(_,y,_), block| {
         *block = if y == 0 { chunk::Stone } else { chunk::Air };
     };
     c.update_buffer_cache();
@@ -26,7 +24,7 @@ fn new_test_chunk() -> Chunk {
 
 fn new_stair_chunk() -> Chunk {
     let mut c = Chunk::new();
-    for c.each_block_mut |(x,y,z), block| {
+    for c.each_block_mut |(x,y,_), block| {
         if 16-x == y { *block = chunk::Stone } else { *block = chunk::Air };
         if x == 0 { *block = chunk::Stone };
     };
@@ -36,7 +34,7 @@ fn new_stair_chunk() -> Chunk {
 
 fn new_empty_chunk() -> Chunk {
     let mut c = Chunk::new();
-    for c.each_block_mut |(x,y,z), block| {
+    for c.each_block_mut |_, block| {
         *block = chunk::Air;
     };
     c.update_buffer_cache();
@@ -150,7 +148,7 @@ pub impl World {
             match block {
                 None => (),
                 Some(b) if *b == chunk::Air => prev = Some(((pos.x, pos.y, pos.z).floor(), b)),
-                Some(b) => return prev
+                Some(_) => return prev
             };
         }
 

@@ -2,8 +2,6 @@ use texture;
 use texture::Texture;
 
 use shader::Program;
-
-use buffer;
 use buffer::Buffer;
 
 use glcore::*;

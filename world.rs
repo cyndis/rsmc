@@ -1,13 +1,11 @@
 use chunk;
 use chunk::Chunk;
-
 use noise::Noise2DContext;
-
 use core::hashmap::HashMap;
-
 use common::*;
-
 use lmath::vec::*;
+use numeric::*;
+use core::float;
 
 pub struct World {
     loaded_chunks: HashMap<(int, int, int), Chunk>
@@ -71,6 +69,10 @@ fn div(a: int, b: int) -> int {
     }
 }
 
+fn sgn(x: float) -> int {
+    if x < 0.0 { -1 } else { 1 }
+}
+
 pub impl World {
     fn new() -> World {
         let mut w = World {
@@ -114,21 +116,53 @@ pub impl World {
         }
     }
 
-    fn cast_ray(&self, origin: &Vec3f, direction: &Vec3f) ->
-        Option<((int, int, int), &'self chunk::Block)>
+    fn visit_ray(&self, origin: &Vec3f, direction: &Vec3f,
+                 f: &fn((int,int,int)) -> bool)
     {
-        // stupid algorithm
-        let d = direction.normalize().mul_t(0.1);
+        let mut (x, y, z) = (origin.x, origin.y, origin.z).floor();
+        let (sgn_x, sgn_y, sgn_z) = (sgn(direction.x), sgn(direction.y), sgn(direction.z));
+        let (cb_x, cb_y, cb_z) = (x + if sgn_x > 0 {1} else {0},
+                                  y + if sgn_y > 0 {1} else {0},
+                                  z + if sgn_z > 0 {1} else {0});
+        let mut (tmax_x, tmax_y, tmax_z) = ((cb_x as float - origin.x) / direction.x,
+                                        (cb_y as float - origin.y) / direction.y,
+                                        (cb_z as float - origin.z) / direction.z);
+        if float::is_NaN(tmax_x) { tmax_x = float::infinity; }
+        if float::is_NaN(tmax_y) { tmax_y = float::infinity; }
+        if float::is_NaN(tmax_z) { tmax_z = float::infinity; }
 
-        for uint::range(0, 8*8) |i| {
-            let pos = origin.add_v(&d.mul_t(i as float));
+        let mut (tdelta_x, tdelta_y, tdelta_z) = (sgn_x as float / direction.x,
+                                              sgn_y as float / direction.y,
+                                              sgn_z as float / direction.z);
+        if float::is_NaN(tdelta_x) { tdelta_x = float::infinity; }
+        if float::is_NaN(tdelta_y) { tdelta_y = float::infinity; }
+        if float::is_NaN(tdelta_z) { tdelta_z = float::infinity; }
 
-            let block = self.block_at_vec(&pos);
-            match block {
-                Some(&chunk::Air) | None => (),
-                Some(b) => return Some(((pos.x, pos.y, pos.z).floor(), b))
-            };
-        }
+        for 8.times {
+            if !f((x,y,z)) { break; }
+
+            if tmax_x < tmax_y && tmax_x < tmax_z {
+                x += sgn_x;
+                tmax_x += tdelta_x;
+            } else if tmax_y < tmax_z {
+                y += sgn_y;
+                tmax_y += tdelta_y;
+            } else {
+                z += sgn_z;
+                tmax_z += tdelta_z;
+            }
+        };
+    }
+
+    fn cast_ray(&self, origin: &Vec3f, direction: &Vec3f)
+        -> Option<((int,int,int), &'self chunk::Block)>
+    {
+        for self.visit_ray(origin, direction) |pos| {
+            match self.block_at(pos) {
+                Some(&chunk::Air) | None => {},
+                Some(b) => return Some((pos, b)),
+            }
+        };
 
         None
     }
@@ -136,20 +170,14 @@ pub impl World {
     fn cast_ray_previous(&self, origin: &Vec3f, direction: &Vec3f) ->
         Option<((int, int, int), &'self chunk::Block)>
     {
-        // stupid algorithm
-        let d = direction.normalize().mul_t(0.1);
-
         let mut prev = None;
 
-        for uint::range(0, 8*8) |i| {
-            let pos = origin.add_v(&d.mul_t(i as float));
-
-            let block = self.block_at_vec(&pos);
-            match block {
-                None => (),
-                Some(b) if *b == chunk::Air => prev = Some(((pos.x, pos.y, pos.z).floor(), b)),
+        for self.visit_ray(origin, direction) |pos| {
+            match self.block_at(pos) {
+                None => {},
+                Some(b) if *b == chunk::Air => prev = Some((pos, b)),
                 Some(_) => return prev
-            };
+            }
         }
 
         None

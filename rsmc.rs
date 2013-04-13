@@ -1,6 +1,7 @@
 extern mod glfw;
 extern mod glcore;
 extern mod lmath;
+extern mod numeric;
 extern mod stb_image;
 
 pub mod main;

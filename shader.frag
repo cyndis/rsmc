@@ -17,4 +17,7 @@ void main() {
     vec4 Ia = vec4(0.13, 0.13, 0.13, 1.0);
     vec4 Id = vec4(0.75, 0.75, 0.75, 1.0) * max(dot(lieye, n_eye), 0.0);
     outputColor = Ld * (Ia + Id);
+
+    if (gl_FragCoord.x > 638 && gl_FragCoord.x < 642 && gl_FragCoord.y > 398 && gl_FragCoord.y < 402)
+      outputColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
